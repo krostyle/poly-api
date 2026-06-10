@@ -1,0 +1,36 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Coverage
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# sqlc generated (optional — commit if you want reproducible builds)
+# internal/adapters/persistence/sqlc/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

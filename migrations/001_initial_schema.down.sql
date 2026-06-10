@@ -1,0 +1,20 @@
+DROP INDEX IF EXISTS idx_documentos_caso;
+DROP INDEX IF EXISTS idx_operaciones_caso;
+DROP INDEX IF EXISTS idx_plazos_limite;
+DROP INDEX IF EXISTS idx_plazos_caso;
+DROP INDEX IF EXISTS idx_casos_abogado;
+DROP INDEX IF EXISTS idx_casos_estado;
+DROP INDEX IF EXISTS idx_casos_scope;
+
+DROP TABLE IF EXISTS auditoria;
+DROP TABLE IF EXISTS feriados;
+DROP TABLE IF EXISTS plazos;
+DROP TABLE IF EXISTS documentos;
+DROP TABLE IF EXISTS ordenes_trabajo;
+DROP TABLE IF EXISTS operaciones;
+DROP TABLE IF EXISTS casos;
+DROP TABLE IF EXISTS clientes;
+DROP TABLE IF EXISTS usuarios_bancos;
+DROP TABLE IF EXISTS usuarios;
+DROP TABLE IF EXISTS bancos;
+DROP TABLE IF EXISTS estudios;
