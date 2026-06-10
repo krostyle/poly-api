@@ -36,10 +36,12 @@ func NewBootstrapUseCase(
 }
 
 func mapClerkRole(clerkRole string) string {
-	if clerkRole == "org:admin" {
+	switch clerkRole {
+	case "org:admin", "admin":
 		return "ADMIN"
+	default:
+		return "ABOGADO"
 	}
-	return "ABOGADO"
 }
 
 // Execute is idempotent: upserts estudio and usuario, returns full profile.
