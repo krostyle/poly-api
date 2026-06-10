@@ -55,13 +55,27 @@ type UsuarioRepository interface {
 	UpsertByClerkUserID(ctx context.Context, in UpsertUsuarioInput) (*Usuario, error)
 	GetByClerkUserID(ctx context.Context, clerkUserID string) (*Usuario, error)
 	GetBancoIDs(ctx context.Context, usuarioID string) ([]string, error)
+	ListByEstudio(ctx context.Context, estudioID string) ([]*Usuario, error)
+	GetByEstudioAndID(ctx context.Context, estudioID, id string) (*Usuario, error)
+}
+
+type UsuarioBanco struct {
+	ID     string
+	Nombre string
+	Email  string
+	Rol    string
 }
 
 type BancoRepository interface {
 	Create(ctx context.Context, estudioID, nombre string) (*Banco, error)
 	List(ctx context.Context, estudioID string) ([]*Banco, error)
 	GetByID(ctx context.Context, estudioID, id string) (*Banco, error)
-	AssignToUsuario(ctx context.Context, usuarioID, bancoID string) error
+	Update(ctx context.Context, estudioID, id, nombre string) (*Banco, error)
+	Delete(ctx context.Context, estudioID, id string) error
+	HasCasos(ctx context.Context, id string) (bool, error)
+	ListUsuarios(ctx context.Context, bancoID string) ([]*UsuarioBanco, error)
+	AsignarUsuario(ctx context.Context, bancoID, usuarioID string) error
+	DesasignarUsuario(ctx context.Context, bancoID, usuarioID string) error
 }
 
 // ── Caso list / detail types ─────────────────────────────────────────────────

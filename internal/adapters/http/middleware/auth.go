@@ -15,6 +15,7 @@ const (
 	keyEstudioID contextKey = "estudio_id"
 	keyBancoIDs  contextKey = "banco_ids"
 	keyUsuarioID contextKey = "usuario_id"
+	keyRol       contextKey = "rol"
 )
 
 func EstudioIDFromCtx(ctx context.Context) string {
@@ -29,6 +30,11 @@ func BancoIDsFromCtx(ctx context.Context) []string {
 
 func UsuarioIDFromCtx(ctx context.Context) string {
 	v, _ := ctx.Value(keyUsuarioID).(string)
+	return v
+}
+
+func RolFromCtx(ctx context.Context) string {
+	v, _ := ctx.Value(keyRol).(string)
 	return v
 }
 
@@ -68,6 +74,7 @@ func RequireAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), keyEstudioID, estudio.ID)
 			ctx = context.WithValue(ctx, keyUsuarioID, usuario.ID)
 			ctx = context.WithValue(ctx, keyBancoIDs, bancoIDs)
+			ctx = context.WithValue(ctx, keyRol, usuario.Rol)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

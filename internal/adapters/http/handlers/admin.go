@@ -53,7 +53,7 @@ func (h *AdminHandler) AssignBancoToUsuario(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.bancos.AssignToUsuario(r.Context(), usuarioID, req.BancoID); err != nil {
+	if err := h.bancos.AsignarUsuario(r.Context(), req.BancoID, usuarioID); err != nil {
 		http.Error(w, `{"error":"could not assign banco"}`, http.StatusInternalServerError)
 		return
 	}

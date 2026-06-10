@@ -53,6 +53,32 @@ func (r *UsuarioRepo) GetBancoIDs(ctx context.Context, usuarioID string) ([]stri
 	return ids, rows.Err()
 }
 
+func (r *UsuarioRepo) ListByEstudio(ctx context.Context, estudioID string) ([]*domain.Usuario, error) {
+	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, created_at
+		FROM usuarios WHERE estudio_id = $1 ORDER BY nombre`
+	rows, err := r.pool.Query(ctx, q, estudioID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*domain.Usuario
+	for rows.Next() {
+		u, err := scanUsuario(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, u)
+	}
+	return result, rows.Err()
+}
+
+func (r *UsuarioRepo) GetByEstudioAndID(ctx context.Context, estudioID, id string) (*domain.Usuario, error) {
+	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, created_at
+		FROM usuarios WHERE id = $1 AND estudio_id = $2`
+	return scanUsuario(r.pool.QueryRow(ctx, q, id, estudioID))
+}
+
 type usuarioScanner interface {
 	Scan(dest ...any) error
 }

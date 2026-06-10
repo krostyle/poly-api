@@ -34,7 +34,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC, estudiosRepo, usuariosRepo, bancosRepo)
-	adminH := handlers.NewAdminHandler(bancosRepo, usuariosRepo)
+	bancosH := handlers.NewBancosHandler(bancosRepo, usuariosRepo)
 	casosH := handlers.NewCasosHandler(createCaseUC, updateCaseUC, transicionUC, casosRepo)
 	clientesH := handlers.NewClientesHandler(clientesRepo)
 	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
@@ -62,10 +62,19 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 
 		r.Get("/v1/me", bootstrapH.Me)
 
-		r.Route("/v1/admin", func(r chi.Router) {
-			r.Post("/bancos", adminH.CreateBanco)
-			r.Post("/usuarios/{id}/bancos", adminH.AssignBancoToUsuario)
+		// Bancos + asignaciones
+		r.Route("/v1/bancos", func(r chi.Router) {
+			r.Get("/", bancosH.Listar)
+			r.Post("/", bancosH.Crear)
+			r.Patch("/{id}", bancosH.Actualizar)
+			r.Delete("/{id}", bancosH.Eliminar)
+			r.Get("/{id}/usuarios", bancosH.ListarUsuarios)
+			r.Post("/{id}/usuarios", bancosH.AsignarUsuario)
+			r.Delete("/{id}/usuarios/{usuarioId}", bancosH.DesasignarUsuario)
 		})
+
+		// Usuarios del estudio (para selector de asignación)
+		r.Get("/v1/usuarios", bancosH.ListarUsuariosEstudio)
 
 		r.Route("/v1/clientes", func(r chi.Router) {
 			r.Post("/", clientesH.Crear)
