@@ -9,8 +9,64 @@ import (
 	"poly.app/api/internal/domain/plazo"
 )
 
+// ── Auth domain types ────────────────────────────────────────────────────────
+
+type Estudio struct {
+	ID         string
+	ClerkOrgID string
+	Nombre     string
+	RUT        *string
+	CreatedAt  time.Time
+}
+
+type Usuario struct {
+	ID          string
+	ClerkUserID string
+	EstudioID   string
+	Nombre      string
+	Email       string
+	Rol         string
+	CreatedAt   time.Time
+}
+
+type Banco struct {
+	ID        string
+	EstudioID string
+	Nombre    string
+	CreatedAt time.Time
+}
+
+type UpsertUsuarioInput struct {
+	ClerkUserID string
+	EstudioID   string
+	Nombre      string
+	Email       string
+	Rol         string
+}
+
+// ── Auth repositories ────────────────────────────────────────────────────────
+
+type EstudioRepository interface {
+	UpsertByClerkOrgID(ctx context.Context, clerkOrgID, nombre string) (*Estudio, error)
+	GetByClerkOrgID(ctx context.Context, clerkOrgID string) (*Estudio, error)
+}
+
+type UsuarioRepository interface {
+	UpsertByClerkUserID(ctx context.Context, in UpsertUsuarioInput) (*Usuario, error)
+	GetByClerkUserID(ctx context.Context, clerkUserID string) (*Usuario, error)
+	GetBancoIDs(ctx context.Context, usuarioID string) ([]string, error)
+}
+
+type BancoRepository interface {
+	Create(ctx context.Context, estudioID, nombre string) (*Banco, error)
+	List(ctx context.Context, estudioID string) ([]*Banco, error)
+	GetByID(ctx context.Context, estudioID, id string) (*Banco, error)
+	AssignToUsuario(ctx context.Context, usuarioID, bancoID string) error
+}
+
+// ── Caso repositories ────────────────────────────────────────────────────────
+
 // CasoRepository defines persistence operations for casos.
-// The domain declares this interface; adapters implement it.
 type CasoRepository interface {
 	Create(ctx context.Context, c *caso.Caso) error
 	GetByID(ctx context.Context, estudioID, id string) (*caso.Caso, error)
@@ -35,7 +91,6 @@ type PlazoRepository interface {
 	MarkCompleted(ctx context.Context, plazoID string, date time.Time) error
 }
 
-// NewPlazoInput is the creation DTO for a plazo.
 type NewPlazoInput struct {
 	CasoID      string
 	Tipo        plazo.TipoPlazo
@@ -44,7 +99,6 @@ type NewPlazoInput struct {
 	FechaLimite time.Time
 }
 
-// StoredPlazo is the plazo as it exists in the database.
 type StoredPlazo struct {
 	ID            string
 	CasoID        string
@@ -55,6 +109,8 @@ type StoredPlazo struct {
 	Completed     bool
 	FechaCumplido *time.Time
 }
+
+// ── Supporting ports ─────────────────────────────────────────────────────────
 
 // FeriadoProvider supplies the Chilean public holiday calendar.
 type FeriadoProvider interface {
@@ -72,7 +128,6 @@ type AuditLogger interface {
 	Log(ctx context.Context, entry AuditEntry) error
 }
 
-// AuditEntry represents one line in the audit log.
 type AuditEntry struct {
 	EstudioID string
 	UsuarioID *string
