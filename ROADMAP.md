@@ -31,6 +31,14 @@
 - [ ] poly-web: formulario de creación + listado de casos
 - **Spec:** `poly-api/specs/02-casos/` · `poly-web/specs/02-casos-ui/`
 
+### Fase 2.5 — Gestión de bancos y asignaciones 🔲
+
+**Objetivo:** Que un admin pueda crear bancos y asignar usuarios a ellos, desbloqueando la creación de casos.
+
+- [ ] poly-api: CRUD bancos + asignación usuario↔banco con guard de rol ADMIN
+- [ ] poly-web: página de configuración de bancos + dialogs de asignación
+- **Spec:** `poly-api/specs/08-bancos/` · `poly-web/specs/05-bancos-ui/`
+
 ### Fase 3 — Máquina de estados 🔲
 
 **Objetivo:** Transicionar casos entre los 8 estados con validaciones de negocio.
