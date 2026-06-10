@@ -21,7 +21,7 @@ func (r *UsuarioRepo) UpsertByClerkUserID(ctx context.Context, in domain.UpsertU
 		INSERT INTO usuarios (clerk_user_id, estudio_id, nombre, email, rol)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (clerk_user_id)
-		DO UPDATE SET nombre = EXCLUDED.nombre, email = EXCLUDED.email
+		DO UPDATE SET nombre = EXCLUDED.nombre, email = EXCLUDED.email, rol = EXCLUDED.rol
 		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, created_at`
 
 	row := r.pool.QueryRow(ctx, q, in.ClerkUserID, in.EstudioID, in.Nombre, in.Email, in.Rol)
