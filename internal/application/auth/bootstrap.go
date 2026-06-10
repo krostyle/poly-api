@@ -7,11 +7,12 @@ import (
 )
 
 type BootstrapInput struct {
-	ClerkOrgID  string
-	ClerkUserID string
-	OrgName     string
-	UserName    string
-	UserEmail   string
+	ClerkOrgID   string
+	ClerkUserID  string
+	ClerkOrgRole string // "org:admin" | "org:member"
+	OrgName      string
+	UserName     string
+	UserEmail    string
 }
 
 type BootstrapOutput struct {
@@ -34,6 +35,13 @@ func NewBootstrapUseCase(
 	return &BootstrapUseCase{estudios: estudios, usuarios: usuarios, bancos: bancos}
 }
 
+func mapClerkRole(clerkRole string) string {
+	if clerkRole == "org:admin" {
+		return "ADMIN"
+	}
+	return "ABOGADO"
+}
+
 // Execute is idempotent: upserts estudio and usuario, returns full profile.
 func (uc *BootstrapUseCase) Execute(ctx context.Context, in BootstrapInput) (*BootstrapOutput, error) {
 	estudio, err := uc.estudios.UpsertByClerkOrgID(ctx, in.ClerkOrgID, in.OrgName)
@@ -46,7 +54,7 @@ func (uc *BootstrapUseCase) Execute(ctx context.Context, in BootstrapInput) (*Bo
 		EstudioID:   estudio.ID,
 		Nombre:      in.UserName,
 		Email:       in.UserEmail,
-		Rol:         "ADMIN",
+		Rol:         mapClerkRole(in.ClerkOrgRole),
 	})
 	if err != nil {
 		return nil, err

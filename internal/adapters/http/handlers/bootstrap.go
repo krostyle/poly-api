@@ -61,11 +61,12 @@ func (h *BootstrapHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := h.uc.Execute(r.Context(), appauth.BootstrapInput{
-		ClerkOrgID:  claims.ActiveOrganizationID,
-		ClerkUserID: claims.Subject,
-		OrgName:     req.OrgName,
-		UserName:    req.UserName,
-		UserEmail:   req.UserEmail,
+		ClerkOrgID:   claims.ActiveOrganizationID,
+		ClerkUserID:  claims.Subject,
+		ClerkOrgRole: claims.ActiveOrganizationRole,
+		OrgName:      req.OrgName,
+		UserName:     req.UserName,
+		UserEmail:    req.UserEmail,
 	})
 	if err != nil {
 		http.Error(w, `{"error":"bootstrap failed"}`, http.StatusInternalServerError)
