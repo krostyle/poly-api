@@ -11,11 +11,19 @@ import (
 )
 
 type BootstrapHandler struct {
-	uc *appauth.BootstrapUseCase
+	uc       *appauth.BootstrapUseCase
+	estudios domain.EstudioRepository
+	usuarios domain.UsuarioRepository
+	bancos   domain.BancoRepository
 }
 
-func NewBootstrapHandler(uc *appauth.BootstrapUseCase) *BootstrapHandler {
-	return &BootstrapHandler{uc: uc}
+func NewBootstrapHandler(
+	uc *appauth.BootstrapUseCase,
+	estudios domain.EstudioRepository,
+	usuarios domain.UsuarioRepository,
+	bancos domain.BancoRepository,
+) *BootstrapHandler {
+	return &BootstrapHandler{uc: uc, estudios: estudios, usuarios: usuarios, bancos: bancos}
 }
 
 type bootstrapRequest struct {
@@ -78,17 +86,45 @@ func (h *BootstrapHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BootstrapHandler) Me(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok || claims == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
 	estudioID := middleware.EstudioIDFromCtx(r.Context())
-	usuarioID := middleware.UsuarioIDFromCtx(r.Context())
-	_ = estudioID
-	_ = usuarioID
-	// Full Me implementation will query estudio+usuario+bancos from context IDs.
-	// For now return the IDs already in context as a minimal response.
+
+	usuario, err := h.usuarios.GetByClerkUserID(r.Context(), claims.Subject)
+	if err != nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
+		return
+	}
+
+	bancos, err := h.bancos.List(r.Context(), estudioID)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	estudio, err := h.estudios.GetByClerkOrgID(r.Context(), claims.ActiveOrganizationID)
+	if err != nil {
+		http.Error(w, `{"error":"estudio not found"}`, http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"estudio_id": estudioID,
-		"usuario_id": usuarioID,
+	json.NewEncoder(w).Encode(profileResponse{
+		Estudio: estudioJSON{ID: estudio.ID, Nombre: estudio.Nombre},
+		Usuario: usuarioJSON{ID: usuario.ID, Nombre: usuario.Nombre, Email: usuario.Email, Rol: usuario.Rol},
+		Bancos:  toBancoJSONs(bancos),
 	})
+}
+
+func toBancoJSONs(bs []*domain.Banco) []bancoJSON {
+	out := make([]bancoJSON, 0, len(bs))
+	for _, b := range bs {
+		out = append(out, bancoJSON{ID: b.ID, Nombre: b.Nombre})
+	}
+	return out
 }
 
 func toProfileResponse(e *domain.Estudio, u *domain.Usuario, bs []*domain.Banco) profileResponse {

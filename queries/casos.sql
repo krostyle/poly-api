@@ -39,6 +39,34 @@ SET abogado_id     = $2,
 WHERE id = $1
 RETURNING *;
 
+-- name: ListarCasosRich :many
+SELECT
+    c.id,
+    c.banco_id,
+    b.nombre         AS banco_nombre,
+    c.cliente_id,
+    cl.rut           AS cliente_rut,
+    cl.nombre        AS cliente_nombre,
+    c.abogado_id,
+    c.numero_ot,
+    c.estado,
+    c.fecha_dj,
+    c.denuncia_valida,
+    c.created_at
+FROM casos c
+JOIN bancos   b  ON b.id  = c.banco_id
+JOIN clientes cl ON cl.id = c.cliente_id
+WHERE c.estudio_id = $1
+  AND c.banco_id   = ANY($2::uuid[])
+ORDER BY c.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: ContarCasos :one
+SELECT COUNT(*)::int
+FROM casos
+WHERE estudio_id = $1
+  AND banco_id   = ANY($2::uuid[]);
+
 -- name: CasosPorVencer :many
 SELECT c.*, p.fecha_limite, p.tipo AS plazo_tipo
 FROM casos c

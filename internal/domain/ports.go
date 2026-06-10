@@ -64,6 +64,50 @@ type BancoRepository interface {
 	AssignToUsuario(ctx context.Context, usuarioID, bancoID string) error
 }
 
+// ── Caso list / detail types ─────────────────────────────────────────────────
+
+type CasoListItem struct {
+	ID             string
+	BancoID        string
+	BancoNombre    string
+	ClienteID      string
+	ClienteRUT     string
+	ClienteNombre  string
+	AbogadoID      *string
+	NumeroOT       *string
+	Estado         estado.Estado
+	FechaDJ        time.Time
+	DenunciaValida bool
+	CreatedAt      time.Time
+}
+
+type Cliente struct {
+	ID        string
+	EstudioID string
+	BancoID   string
+	RUT       string
+	Nombre    string
+	Contacto  *string
+	CreatedAt time.Time
+}
+
+type Operacion struct {
+	ID        string
+	CasoID    string
+	MedioPago string
+	Relacion  string
+	MontoCLP  int64
+	MontoUF   *float64
+	FechaOp   time.Time
+	CreatedAt time.Time
+}
+
+type CasoDetalle struct {
+	Caso        *caso.Caso
+	Cliente     *Cliente
+	Operaciones []*Operacion
+}
+
 // ── Caso repositories ────────────────────────────────────────────────────────
 
 // CasoRepository defines persistence operations for casos.
@@ -72,7 +116,9 @@ type CasoRepository interface {
 	GetByID(ctx context.Context, estudioID, id string) (*caso.Caso, error)
 	Update(ctx context.Context, c *caso.Caso) error
 	List(ctx context.Context, estudioID string, filters CaseFilters) ([]*caso.Caso, error)
+	ListRich(ctx context.Context, estudioID string, filters CaseFilters) ([]*CasoListItem, int, error)
 	UpdateState(ctx context.Context, id string, newState estado.Estado) error
+	GetDetalle(ctx context.Context, estudioID, id string) (*CasoDetalle, error)
 }
 
 // CaseFilters parameterizes list queries.
@@ -82,6 +128,37 @@ type CaseFilters struct {
 	AbogadoID *string
 	Limit     int
 	Offset    int
+}
+
+// UpsertClienteInput holds data for create-or-update of a client.
+type UpsertClienteInput struct {
+	EstudioID string
+	BancoID   string
+	RUT       string
+	Nombre    string
+	Contacto  *string
+}
+
+// ClienteRepository manages client persistence.
+type ClienteRepository interface {
+	Upsert(ctx context.Context, in UpsertClienteInput) (*Cliente, error)
+	GetByID(ctx context.Context, estudioID, id string) (*Cliente, error)
+}
+
+// NewOperacionInput holds data for creating an operation.
+type NewOperacionInput struct {
+	CasoID    string
+	MedioPago string
+	Relacion  string
+	MontoCLP  int64
+	MontoUF   *float64
+	FechaOp   time.Time
+}
+
+// OperacionRepository manages operations persistence.
+type OperacionRepository interface {
+	Create(ctx context.Context, in NewOperacionInput) (*Operacion, error)
+	ListByCaso(ctx context.Context, casoID string) ([]*Operacion, error)
 }
 
 // PlazoRepository manages the legal deadlines associated with a caso.

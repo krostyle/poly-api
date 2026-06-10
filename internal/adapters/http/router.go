@@ -8,24 +8,36 @@ import (
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/jackc/pgx/v5/pgxpool"
 	appauth "poly.app/api/internal/application/auth"
+	appcasos "poly.app/api/internal/application/casos"
+	appops "poly.app/api/internal/application/operaciones"
 	"poly.app/api/internal/adapters/http/handlers"
 	"poly.app/api/internal/adapters/http/middleware"
 	"poly.app/api/internal/adapters/persistence"
 )
 
 func NewRouter(pool *pgxpool.Pool) http.Handler {
-	// Repos
+	// ── Repos ────────────────────────────────────────────────────────────────
 	estudiosRepo := persistence.NewEstudioRepo(pool)
 	usuariosRepo := persistence.NewUsuarioRepo(pool)
 	bancosRepo := persistence.NewBancoRepo(pool)
+	casosRepo := persistence.NewCasoRepo(pool)
+	clientesRepo := persistence.NewClienteRepo(pool)
+	operacionesRepo := persistence.NewOperacionRepo(pool)
+	auditRepo := persistence.NewAuditRepo(pool)
 
-	// Use cases
+	// ── Use cases ────────────────────────────────────────────────────────────
 	bootstrapUC := appauth.NewBootstrapUseCase(estudiosRepo, usuariosRepo, bancosRepo)
+	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, auditRepo)
+	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, auditRepo)
+	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, auditRepo)
+	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
 
-	// Handlers
-	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC)
+	// ── Handlers ─────────────────────────────────────────────────────────────
+	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC, estudiosRepo, usuariosRepo, bancosRepo)
 	adminH := handlers.NewAdminHandler(bancosRepo, usuariosRepo)
-	casosH := handlers.NewCasosHandler()
+	casosH := handlers.NewCasosHandler(createCaseUC, updateCaseUC, transicionUC, casosRepo)
+	clientesH := handlers.NewClientesHandler(clientesRepo)
+	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
 	plazosH := handlers.NewPlazosHandler()
 
 	r := chi.NewRouter()
@@ -55,11 +67,19 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Post("/usuarios/{id}/bancos", adminH.AssignBancoToUsuario)
 		})
 
+		r.Route("/v1/clientes", func(r chi.Router) {
+			r.Post("/", clientesH.Crear)
+			r.Get("/{id}", clientesH.Obtener)
+		})
+
 		r.Route("/v1/casos", func(r chi.Router) {
 			r.Get("/", casosH.Listar)
 			r.Post("/", casosH.Crear)
 			r.Get("/{id}", casosH.Obtener)
+			r.Patch("/{id}", casosH.Actualizar)
 			r.Post("/{id}/transicion", casosH.Transicionar)
+			r.Post("/{id}/operaciones", operacionesH.Crear)
+			r.Get("/{id}/operaciones", operacionesH.Listar)
 		})
 
 		r.Route("/v1/casos/{casoID}/plazos", func(r chi.Router) {
