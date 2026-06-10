@@ -1,4 +1,54 @@
-# poly-api — Arquitectura (Clean Architecture)
+# poly-api — Arquitectura
+
+## Sistema completo
+
+```
+┌─────────────────────────────────────────────────────┐
+│  poly-web (Next.js 16 · Vercel)                     │
+│  Browser → App Router → Clerk (auth) → lib/api      │
+└──────────────────────┬──────────────────────────────┘
+                       │ HTTP/JSON  Authorization: Bearer <Clerk JWT>
+                       ▼
+┌─────────────────────────────────────────────────────┐
+│  poly-api (Go · Railway)                            │
+│  chi router → middleware (Clerk JWT) → use cases    │
+│            → sqlc / Postgres (Neon)                 │
+└─────────────────────────────────────────────────────┘
+```
+
+### Contrato entre repos
+
+- Auth: poly-web pide JWT a Clerk → lo envía como `Authorization: Bearer`. poly-api verifica con Clerk SDK y extrae `org_id` (= `estudio_id`) + `user_id`.
+- Base URL: `NEXT_PUBLIC_API_URL` en poly-web apunta a poly-api.
+- Formato: JSON, fechas ISO 8601 (`2025-06-08`), IDs UUID v4.
+- Errores: `{ "error": "mensaje" }` con HTTP code apropiado.
+
+### Servicios externos
+
+| Servicio | Rol | Env var clave |
+| --- | --- | --- |
+| Clerk | Auth + Organizations (estudios) | `CLERK_SECRET_KEY`, `CLERK_ISSUER_URL` |
+| Neon | Postgres serverless | `DATABASE_URL` |
+| Railway | Deploy de poly-api | `PORT` |
+| Vercel | Deploy de poly-web | — |
+| Vercel Blob | Documentos (Fase 5) | `BLOB_READ_WRITE_TOKEN` |
+
+### Flujo de una request
+
+```
+1. Usuario en poly-web hace acción
+2. useAuth().getToken() → JWT de Clerk
+3. lib/api/client.ts → fetch a poly-api con Bearer token
+4. middleware auth.go → verifica JWT, extrae estudio_id + banco_ids
+5. Handler → use case (con scope inyectado)
+6. Use case → port (interface) → sqlc adapter
+7. Query con WHERE estudio_id = $1 AND banco_id = ANY($2)
+8. Resultado → JSON response
+```
+
+---
+
+## Clean Architecture
 
 ## Regla de dependencia
 ```
