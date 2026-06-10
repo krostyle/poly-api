@@ -49,6 +49,9 @@ func (r *CasoRepo) Update(ctx context.Context, c *caso.Caso) error {
 }
 
 func (r *CasoRepo) List(ctx context.Context, estudioID string, filters domain.CaseFilters) ([]*caso.Caso, error) {
+	if len(filters.BancoIDs) == 0 {
+		return nil, nil
+	}
 	limit := filters.Limit
 	if limit == 0 {
 		limit = 50
@@ -74,15 +77,19 @@ func (r *CasoRepo) List(ctx context.Context, estudioID string, filters domain.Ca
 }
 
 func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domain.CaseFilters) ([]*domain.CasoListItem, int, error) {
+	if len(filters.BancoIDs) == 0 {
+		return nil, 0, nil
+	}
 	limit := filters.Limit
 	if limit == 0 {
 		limit = 50
 	}
-	const countQ = `SELECT COUNT(*)::int FROM casos WHERE estudio_id = $1 AND banco_id = ANY($2::uuid[])`
-	var total int
-	if err := r.pool.QueryRow(ctx, countQ, estudioID, filters.BancoIDs).Scan(&total); err != nil {
+	const countQ = `SELECT COUNT(*) FROM casos WHERE estudio_id = $1 AND banco_id = ANY($2::uuid[])`
+	var totalRaw int64
+	if err := r.pool.QueryRow(ctx, countQ, estudioID, filters.BancoIDs).Scan(&totalRaw); err != nil {
 		return nil, 0, err
 	}
+	total := int(totalRaw)
 
 	const q = `SELECT c.id, c.banco_id, b.nombre, c.cliente_id, cl.rut, cl.nombre,
 		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.denuncia_valida, c.created_at
