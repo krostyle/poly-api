@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/jackc/pgx/v5/pgxpool"
 	appauth "poly.app/api/internal/application/auth"
@@ -44,6 +45,13 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RealIP)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 
 	// ── Public ───────────────────────────────────────────────────────────────
 	r.Get("/health", handlers.Health)
