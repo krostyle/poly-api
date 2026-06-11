@@ -3,15 +3,85 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	polyhhttp "poly.app/api/internal/adapters/http"
+	"poly.app/api/migrations"
 )
+
+func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	if _, err := pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version    TEXT PRIMARY KEY,
+			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+		)
+	`); err != nil {
+		return fmt.Errorf("create schema_migrations: %w", err)
+	}
+
+	rows, err := pool.Query(ctx, "SELECT version FROM schema_migrations")
+	if err != nil {
+		return fmt.Errorf("query applied migrations: %w", err)
+	}
+	applied := map[string]bool{}
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return err
+		}
+		applied[v] = true
+	}
+	rows.Close()
+
+	entries, err := fs.ReadDir(migrations.FS, ".")
+	if err != nil {
+		return fmt.Errorf("read migrations: %w", err)
+	}
+
+	var upFiles []string
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".up.sql") {
+			upFiles = append(upFiles, e.Name())
+		}
+	}
+	sort.Strings(upFiles)
+
+	for _, name := range upFiles {
+		version := strings.TrimSuffix(name, ".up.sql")
+		if applied[version] {
+			continue
+		}
+		sql, err := migrations.FS.ReadFile(name)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", name, err)
+		}
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, string(sql)); err != nil {
+			tx.Rollback(ctx)
+			return fmt.Errorf("apply %s: %w", name, err)
+		}
+		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", version); err != nil {
+			tx.Rollback(ctx)
+			return err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return err
+		}
+		log.Printf("migration applied: %s", version)
+	}
+	return nil
+}
 
 func main() {
 	_ = godotenv.Load()
@@ -28,6 +98,10 @@ func main() {
 		log.Fatalf("database unreachable: %v", err)
 	}
 	log.Println("database connected")
+
+	if err := runMigrations(context.Background(), pool); err != nil {
+		log.Fatalf("migrations failed: %v", err)
+	}
 
 	port := os.Getenv("PORT")
 	if port == "" {
