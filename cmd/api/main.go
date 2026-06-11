@@ -18,6 +18,16 @@ import (
 )
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+	// Track whether schema_migrations is brand-new so we can seed it with
+	// migrations that were applied manually before this runner existed.
+	var migrationsTableExisted bool
+	pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM pg_tables
+			WHERE schemaname = 'public' AND tablename = 'schema_migrations'
+		)
+	`).Scan(&migrationsTableExisted)
+
 	if _, err := pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version    TEXT PRIMARY KEY,
@@ -25,6 +35,26 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		)
 	`); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
+	}
+
+	// First-run bootstrap: if the table is new but the schema already exists,
+	// mark 001 as applied so we don't try to re-run it.
+	if !migrationsTableExisted {
+		var schemaExists bool
+		pool.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM pg_tables
+				WHERE schemaname = 'public' AND tablename = 'estudios'
+			)
+		`).Scan(&schemaExists)
+		if schemaExists {
+			if _, err := pool.Exec(ctx,
+				`INSERT INTO schema_migrations (version) VALUES ('001_initial_schema') ON CONFLICT DO NOTHING`,
+			); err != nil {
+				return fmt.Errorf("seed schema_migrations: %w", err)
+			}
+			log.Println("schema_migrations seeded: 001_initial_schema already present")
+		}
 	}
 
 	rows, err := pool.Query(ctx, "SELECT version FROM schema_migrations")
