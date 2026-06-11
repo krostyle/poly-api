@@ -389,16 +389,6 @@ func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
 	estudioID := middleware.EstudioIDFromCtx(r.Context())
 	id := chi.URLParam(r, "id")
 
-	c, err := h.repo.GetByID(r.Context(), estudioID, id)
-	if err != nil {
-		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
-		return
-	}
-	if c.Estado != estado.Ingreso {
-		http.Error(w, `{"error":"solo se pueden eliminar casos en estado INGRESO"}`, http.StatusConflict)
-		return
-	}
-
 	if err := h.repo.Delete(r.Context(), estudioID, id); err != nil {
 		http.Error(w, `{"error":"could not delete caso"}`, http.StatusInternalServerError)
 		return
