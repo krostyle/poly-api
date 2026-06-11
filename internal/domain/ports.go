@@ -215,6 +215,32 @@ type DocumentStorage interface {
 	Delete(ctx context.Context, url string) error
 }
 
+// Documento types
+
+type Documento struct {
+	ID        string
+	CasoID    string
+	Tipo      string
+	BlobURL   string
+	Nombre    string
+	SubidoPor *string
+	CreatedAt time.Time
+}
+
+type NewDocumentoInput struct {
+	CasoID    string
+	Tipo      string
+	BlobURL   string
+	Nombre    string
+	SubidoPor *string
+}
+
+// DocumentoRepository persists document metadata.
+type DocumentoRepository interface {
+	Create(ctx context.Context, in NewDocumentoInput) (*Documento, error)
+	ListByCaso(ctx context.Context, casoID string) ([]*Documento, error)
+}
+
 // AuditLogger records every caso mutation. The underlying table is append-only.
 type AuditLogger interface {
 	Log(ctx context.Context, entry AuditEntry) error

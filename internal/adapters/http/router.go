@@ -11,7 +11,9 @@ import (
 	appauth "poly.app/api/internal/application/auth"
 	appcasos "poly.app/api/internal/application/casos"
 	appops "poly.app/api/internal/application/operaciones"
+	appdocs "poly.app/api/internal/application/documentos"
 	"poly.app/api/internal/adapters/feriados"
+	"poly.app/api/internal/adapters/storage"
 	"poly.app/api/internal/adapters/http/handlers"
 	"poly.app/api/internal/adapters/http/middleware"
 	"poly.app/api/internal/adapters/persistence"
@@ -28,6 +30,8 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	auditRepo := persistence.NewAuditRepo(pool)
 	plazosRepo := persistence.NewPlazoRepo(pool)
 	feriadosProvider := feriados.NewDBFeriadoProvider(pool)
+	documentosRepo := persistence.NewDocumentoRepo(pool)
+	blobStorage := storage.NewVercelBlobStorage()
 
 	// ── Use cases ────────────────────────────────────────────────────────────
 	bootstrapUC := appauth.NewBootstrapUseCase(estudiosRepo, usuariosRepo, bancosRepo)
@@ -35,6 +39,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, auditRepo)
 	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
+	subirDocUC := appdocs.NewSubirDocumentoUseCase(blobStorage, documentosRepo)
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC, estudiosRepo, usuariosRepo, bancosRepo)
@@ -43,6 +48,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	clientesH := handlers.NewClientesHandler(clientesRepo)
 	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
 	plazosH := handlers.NewPlazosHandler(plazosRepo, feriadosProvider)
+	documentosH := handlers.NewDocumentosHandler(subirDocUC, documentosRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -104,6 +110,8 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Get("/{id}/operaciones", operacionesH.Listar)
 			r.Get("/{id}/plazos", plazosH.ListarPorCaso)
 			r.Post("/{id}/plazos/{plazoID}/cumplir", plazosH.CumplirPlazo)
+			r.Get("/{id}/documentos", documentosH.Listar)
+			r.Post("/{id}/documentos", documentosH.Subir)
 		})
 	})
 
