@@ -10,8 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	appauth "poly.app/api/internal/application/auth"
 	appcasos "poly.app/api/internal/application/casos"
-	appops "poly.app/api/internal/application/operaciones"
+	appdash "poly.app/api/internal/application/dashboard"
 	appdocs "poly.app/api/internal/application/documentos"
+	appops "poly.app/api/internal/application/operaciones"
 	"poly.app/api/internal/adapters/feriados"
 	"poly.app/api/internal/adapters/storage"
 	"poly.app/api/internal/adapters/http/handlers"
@@ -40,6 +41,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
 	subirDocUC := appdocs.NewSubirDocumentoUseCase(blobStorage, documentosRepo)
+	dashboardUC := appdash.NewDashboardUseCase(pool)
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC, estudiosRepo, usuariosRepo, bancosRepo)
@@ -49,6 +51,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
 	plazosH := handlers.NewPlazosHandler(plazosRepo, feriadosProvider)
 	documentosH := handlers.NewDocumentosHandler(subirDocUC, documentosRepo)
+	dashboardH := handlers.NewDashboardHandler(dashboardUC)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -112,6 +115,13 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Post("/{id}/plazos/{plazoID}/cumplir", plazosH.CumplirPlazo)
 			r.Get("/{id}/documentos", documentosH.Listar)
 			r.Post("/{id}/documentos", documentosH.Subir)
+		})
+
+		r.Route("/v1/dashboard", func(r chi.Router) {
+			r.Get("/por-vencer", dashboardH.PorVencer)
+			r.Get("/nuevos", dashboardH.Nuevos)
+			r.Get("/estancados", dashboardH.Estancados)
+			r.Get("/por-abogado", dashboardH.PorAbogado)
 		})
 	})
 
