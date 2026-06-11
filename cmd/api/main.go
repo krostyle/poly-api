@@ -19,12 +19,12 @@ import (
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
+		CREATE TABLE IF NOT EXISTS poly_migrations (
 			version    TEXT PRIMARY KEY,
 			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		)
 	`); err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
+		return fmt.Errorf("create poly_migrations: %w", err)
 	}
 
 	// If the schema already exists but 001 isn't tracked, mark it as applied.
@@ -37,13 +37,13 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	`).Scan(&estudiosExists)
 	if estudiosExists {
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO schema_migrations (version) VALUES ('001_initial_schema') ON CONFLICT DO NOTHING`,
+			`INSERT INTO poly_migrations (version) VALUES ('001_initial_schema') ON CONFLICT DO NOTHING`,
 		); err != nil {
-			return fmt.Errorf("seed schema_migrations: %w", err)
+			return fmt.Errorf("seed poly_migrations: %w", err)
 		}
 	}
 
-	rows, err := pool.Query(ctx, "SELECT version FROM schema_migrations")
+	rows, err := pool.Query(ctx, "SELECT version FROM poly_migrations")
 	if err != nil {
 		return fmt.Errorf("query applied migrations: %w", err)
 	}
@@ -87,7 +87,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 			tx.Rollback(ctx)
 			return fmt.Errorf("apply %s: %w", name, err)
 		}
-		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", version); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO poly_migrations (version) VALUES ($1)", version); err != nil {
 			tx.Rollback(ctx)
 			return err
 		}
