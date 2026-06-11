@@ -73,6 +73,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 		// Bancos + asignaciones
 		r.Route("/v1/bancos", func(r chi.Router) {
 			r.Get("/", bancosH.Listar)
+			r.Get("/catalogo", bancosH.Catalogo)
 			r.Post("/", bancosH.Crear)
 			r.Patch("/{id}", bancosH.Actualizar)
 			r.Delete("/{id}", bancosH.Eliminar)

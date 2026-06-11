@@ -46,6 +46,17 @@ func toBancoDetalle(b *domain.Banco) bancoDetalleJSON {
 	return bancoDetalleJSON{ID: b.ID, Nombre: b.Nombre, CreatedAt: b.CreatedAt}
 }
 
+// GET /v1/bancos/catalogo
+func (h *BancosHandler) Catalogo(w http.ResponseWriter, r *http.Request) {
+	nombres, err := h.bancos.ListCatalogo(r.Context())
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"bancos": nombres})
+}
+
 // GET /v1/bancos
 func (h *BancosHandler) Listar(w http.ResponseWriter, r *http.Request) {
 	estudioID := middleware.EstudioIDFromCtx(r.Context())

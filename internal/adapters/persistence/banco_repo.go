@@ -105,6 +105,23 @@ func (r *BancoRepo) DesasignarUsuario(ctx context.Context, bancoID, usuarioID st
 	return nil
 }
 
+func (r *BancoRepo) ListCatalogo(ctx context.Context) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `SELECT nombre FROM bancos_catalogo ORDER BY nombre ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var nombres []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		nombres = append(nombres, n)
+	}
+	return nombres, rows.Err()
+}
+
 type bancoScanner interface {
 	Scan(dest ...any) error
 }

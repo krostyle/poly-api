@@ -76,6 +76,7 @@ type BancoRepository interface {
 	ListUsuarios(ctx context.Context, bancoID string) ([]*UsuarioBanco, error)
 	AsignarUsuario(ctx context.Context, bancoID, usuarioID string) error
 	DesasignarUsuario(ctx context.Context, bancoID, usuarioID string) error
+	ListCatalogo(ctx context.Context) ([]string, error)
 }
 
 // ── Caso list / detail types ─────────────────────────────────────────────────
@@ -225,4 +226,18 @@ type AuditEntry struct {
 	CasoID    *string
 	Accion    string
 	Detalle   map[string]any
+}
+
+// HistorialEntry represents a state-change event recorded in the audit log.
+type HistorialEntry struct {
+	ID             string
+	UsuarioNombre  string
+	EstadoAnterior string
+	EstadoNuevo    string
+	CreatedAt      time.Time
+}
+
+// HistorialReader reads state-change history for a caso.
+type HistorialReader interface {
+	ListByCaso(ctx context.Context, estudioID, casoID string) ([]*HistorialEntry, error)
 }
