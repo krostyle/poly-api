@@ -57,6 +57,7 @@ type UsuarioRepository interface {
 	GetBancoIDs(ctx context.Context, usuarioID string) ([]string, error)
 	ListByEstudio(ctx context.Context, estudioID string) ([]*Usuario, error)
 	GetByEstudioAndID(ctx context.Context, estudioID, id string) (*Usuario, error)
+	UpdateRol(ctx context.Context, estudioID, id, rol string) (*Usuario, error)
 }
 
 type UsuarioBanco struct {

@@ -52,6 +52,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	plazosH := handlers.NewPlazosHandler(plazosRepo, feriadosProvider)
 	documentosH := handlers.NewDocumentosHandler(subirDocUC, documentosRepo)
 	dashboardH := handlers.NewDashboardHandler(dashboardUC)
+	usuariosH := handlers.NewUsuariosHandler(usuariosRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -94,8 +95,10 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Delete("/{id}/usuarios/{usuarioId}", bancosH.DesasignarUsuario)
 		})
 
-		// Usuarios del estudio (para selector de asignación)
+		// Usuarios del estudio
 		r.Get("/v1/usuarios", bancosH.ListarUsuariosEstudio)
+		r.Post("/v1/usuarios/invitar", usuariosH.Invitar)
+		r.Patch("/v1/usuarios/{id}/rol", usuariosH.ActualizarRol)
 
 		r.Route("/v1/clientes", func(r chi.Router) {
 			r.Post("/", clientesH.Crear)

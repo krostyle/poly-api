@@ -17,15 +17,33 @@ func NewUsuarioRepo(pool *pgxpool.Pool) *UsuarioRepo {
 }
 
 func (r *UsuarioRepo) UpsertByClerkUserID(ctx context.Context, in domain.UpsertUsuarioInput) (*domain.Usuario, error) {
+	// On conflict: always sync nombre/email from Clerk.
+	// For rol: if Clerk says ADMIN, always promote; if Clerk says ABOGADO (org:member),
+	// preserve TRAMITADOR to avoid overwriting fine-grained Poly roles on every login.
 	const q = `
 		INSERT INTO usuarios (clerk_user_id, estudio_id, nombre, email, rol)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (clerk_user_id)
-		DO UPDATE SET nombre = EXCLUDED.nombre, email = EXCLUDED.email, rol = EXCLUDED.rol
+		DO UPDATE SET
+			nombre = EXCLUDED.nombre,
+			email  = EXCLUDED.email,
+			rol    = CASE
+				WHEN EXCLUDED.rol = 'ADMIN'                                  THEN 'ADMIN'
+				WHEN usuarios.rol = 'TRAMITADOR' AND EXCLUDED.rol = 'ABOGADO' THEN 'TRAMITADOR'
+				ELSE EXCLUDED.rol
+			END
 		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, created_at`
 
 	row := r.pool.QueryRow(ctx, q, in.ClerkUserID, in.EstudioID, in.Nombre, in.Email, in.Rol)
 	return scanUsuario(row)
+}
+
+func (r *UsuarioRepo) UpdateRol(ctx context.Context, estudioID, id, rol string) (*domain.Usuario, error) {
+	const q = `
+		UPDATE usuarios SET rol = $1
+		WHERE id = $2 AND estudio_id = $3
+		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, created_at`
+	return scanUsuario(r.pool.QueryRow(ctx, q, rol, id, estudioID))
 }
 
 func (r *UsuarioRepo) GetByClerkUserID(ctx context.Context, clerkUserID string) (*domain.Usuario, error) {
