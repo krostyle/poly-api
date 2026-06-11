@@ -60,6 +60,44 @@ func (r *PlazoRepo) ListByCase(ctx context.Context, casoID string) ([]domain.Sto
 	return result, rows.Err()
 }
 
+func (r *PlazoRepo) ListGlobal(ctx context.Context, estudioID string, bancoIDs []string, tipoFilter string) ([]domain.StoredPlazoGlobal, error) {
+	q := `
+		SELECT p.id, p.caso_id, p.tipo, p.fecha_inicio, p.dias_habiles, p.fecha_limite,
+		       c.numero_ot, cl.nombre, cl.rut, b.nombre, c.estado
+		FROM plazos p
+		JOIN casos    c  ON c.id  = p.caso_id
+		JOIN clientes cl ON cl.id = c.cliente_id
+		JOIN bancos   b  ON b.id  = c.banco_id
+		WHERE c.estudio_id = $1
+		  AND c.banco_id = ANY($2)
+		  AND p.cumplido = false
+		  AND c.estado NOT IN ('CIERRE','TERMINADO')
+		  AND ($3 = '' OR p.tipo = $3)
+		ORDER BY p.fecha_limite ASC
+		LIMIT 200`
+
+	rows, err := r.pool.Query(ctx, q, estudioID, bancoIDs, tipoFilter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []domain.StoredPlazoGlobal
+	for rows.Next() {
+		var g domain.StoredPlazoGlobal
+		var tipo string
+		if err := rows.Scan(
+			&g.ID, &g.CasoID, &tipo, &g.FechaInicio, &g.DiasHabiles, &g.FechaLimite,
+			&g.NumeroOT, &g.ClienteNombre, &g.ClienteRUT, &g.BancoNombre, &g.Estado,
+		); err != nil {
+			return nil, err
+		}
+		g.Tipo = plazo.TipoPlazo(tipo)
+		result = append(result, g)
+	}
+	return result, rows.Err()
+}
+
 func (r *PlazoRepo) MarkCompleted(ctx context.Context, plazoID string, date time.Time) error {
 	_, err := r.pool.Exec(ctx,
 		`UPDATE plazos SET cumplido = true, fecha_cumplido = $2 WHERE id = $1`,

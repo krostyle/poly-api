@@ -181,6 +181,7 @@ type OperacionRepository interface {
 type PlazoRepository interface {
 	CreateBatch(ctx context.Context, plazos []NewPlazoInput) error
 	ListByCase(ctx context.Context, casoID string) ([]StoredPlazo, error)
+	ListGlobal(ctx context.Context, estudioID string, bancoIDs []string, tipoFilter string) ([]StoredPlazoGlobal, error)
 	MarkCompleted(ctx context.Context, plazoID string, date time.Time) error
 }
 
@@ -201,6 +202,15 @@ type StoredPlazo struct {
 	FechaLimite   time.Time
 	Completed     bool
 	FechaCumplido *time.Time
+}
+
+type StoredPlazoGlobal struct {
+	StoredPlazo
+	NumeroOT      *string
+	ClienteNombre string
+	ClienteRUT    string
+	BancoNombre   string
+	Estado        string
 }
 
 // ── Supporting ports ─────────────────────────────────────────────────────────

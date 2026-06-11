@@ -105,6 +105,8 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Get("/{id}", clientesH.Obtener)
 		})
 
+		r.Get("/v1/plazos", plazosH.ListarGlobal)
+
 		r.Route("/v1/casos", func(r chi.Router) {
 			r.Get("/", casosH.Listar)
 			r.Post("/", casosH.Crear)
