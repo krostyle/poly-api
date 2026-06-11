@@ -26,31 +26,34 @@ func (r *AuditRepo) Log(ctx context.Context, entry domain.AuditEntry) error {
 	return err
 }
 
-func (r *AuditRepo) ListByCaso(ctx context.Context, estudioID, casoID string) ([]*domain.HistorialEntry, error) {
+func (r *AuditRepo) ListByCaso(ctx context.Context, estudioID, casoID string) ([]*domain.FullAuditEntry, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT a.id::text,
+		       a.accion,
+		       a.detalle,
 		       COALESCE(u.nombre, 'Sistema'),
-		       a.detalle->>'anterior',
-		       a.detalle->>'nuevo',
 		       a.created_at
 		FROM auditoria a
 		LEFT JOIN usuarios u ON u.id = a.usuario_id
 		WHERE a.estudio_id = $1
 		  AND a.caso_id = $2
-		  AND a.accion = 'ESTADO_CAMBIADO'
-		ORDER BY a.created_at ASC
+		ORDER BY a.created_at DESC
 	`, estudioID, casoID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var entries []*domain.HistorialEntry
+	var entries []*domain.FullAuditEntry
 	for rows.Next() {
-		var e domain.HistorialEntry
+		var e domain.FullAuditEntry
 		var createdAt time.Time
-		if err := rows.Scan(&e.ID, &e.UsuarioNombre, &e.EstadoAnterior, &e.EstadoNuevo, &createdAt); err != nil {
+		var detalle []byte
+		if err := rows.Scan(&e.ID, &e.Accion, &detalle, &e.UsuarioNombre, &createdAt); err != nil {
 			return nil, err
+		}
+		if len(detalle) > 0 {
+			_ = json.Unmarshal(detalle, &e.Detalle)
 		}
 		e.CreatedAt = createdAt
 		entries = append(entries, &e)

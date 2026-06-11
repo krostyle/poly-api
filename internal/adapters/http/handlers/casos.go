@@ -332,20 +332,24 @@ func (h *CasosHandler) Historial(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type entryJSON struct {
-		ID             string `json:"id"`
-		UsuarioNombre  string `json:"usuario_nombre"`
-		EstadoAnterior string `json:"estado_anterior"`
-		EstadoNuevo    string `json:"estado_nuevo"`
-		CreatedAt      string `json:"created_at"`
+		ID            string         `json:"id"`
+		Accion        string         `json:"accion"`
+		Detalle       map[string]any `json:"detalle"`
+		UsuarioNombre string         `json:"usuario_nombre"`
+		CreatedAt     string         `json:"created_at"`
 	}
 	resp := make([]entryJSON, 0, len(entries))
 	for _, e := range entries {
+		det := e.Detalle
+		if det == nil {
+			det = map[string]any{}
+		}
 		resp = append(resp, entryJSON{
-			ID:             e.ID,
-			UsuarioNombre:  e.UsuarioNombre,
-			EstadoAnterior: e.EstadoAnterior,
-			EstadoNuevo:    e.EstadoNuevo,
-			CreatedAt:      e.CreatedAt.UTC().Format(time.RFC3339),
+			ID:            e.ID,
+			Accion:        e.Accion,
+			Detalle:       det,
+			UsuarioNombre: e.UsuarioNombre,
+			CreatedAt:     e.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	}
 

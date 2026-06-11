@@ -265,16 +265,16 @@ type AuditEntry struct {
 	Detalle   map[string]any
 }
 
-// HistorialEntry represents a state-change event recorded in the audit log.
-type HistorialEntry struct {
-	ID             string
-	UsuarioNombre  string
-	EstadoAnterior string
-	EstadoNuevo    string
-	CreatedAt      time.Time
+// FullAuditEntry represents any audit event recorded for a caso.
+type FullAuditEntry struct {
+	ID            string
+	Accion        string
+	Detalle       map[string]any
+	UsuarioNombre string
+	CreatedAt     time.Time
 }
 
-// HistorialReader reads state-change history for a caso.
+// HistorialReader reads audit history for a caso.
 type HistorialReader interface {
-	ListByCaso(ctx context.Context, estudioID, casoID string) ([]*HistorialEntry, error)
+	ListByCaso(ctx context.Context, estudioID, casoID string) ([]*FullAuditEntry, error)
 }
