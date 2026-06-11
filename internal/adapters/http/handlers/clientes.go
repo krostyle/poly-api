@@ -52,6 +52,44 @@ func (h *ClientesHandler) Crear(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(toClienteDetailJSON(cliente))
 }
 
+func (h *ClientesHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
+	estudioID := middleware.EstudioIDFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+
+	var req struct {
+		Nombre   *string `json:"nombre"`
+		Contacto *string `json:"contacto"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+		return
+	}
+
+	existing, err := h.repo.GetByID(r.Context(), estudioID, id)
+	if err != nil {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+		return
+	}
+
+	nombre := existing.Nombre
+	if req.Nombre != nil && *req.Nombre != "" {
+		nombre = *req.Nombre
+	}
+	contacto := existing.Contacto
+	if req.Contacto != nil {
+		contacto = req.Contacto
+	}
+
+	cliente, err := h.repo.Update(r.Context(), estudioID, id, nombre, contacto)
+	if err != nil {
+		http.Error(w, `{"error":"could not update cliente"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(toClienteDetailJSON(cliente))
+}
+
 func (h *ClientesHandler) Obtener(w http.ResponseWriter, r *http.Request) {
 	estudioID := middleware.EstudioIDFromCtx(r.Context())
 	id := chi.URLParam(r, "id")

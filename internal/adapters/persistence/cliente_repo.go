@@ -32,6 +32,14 @@ func (r *ClienteRepo) Upsert(ctx context.Context, in domain.UpsertClienteInput) 
 	return scanCliente(row)
 }
 
+func (r *ClienteRepo) Update(ctx context.Context, estudioID, id, nombre string, contacto *string) (*domain.Cliente, error) {
+	const q = `UPDATE clientes SET nombre = $1, contacto = $2
+		WHERE id = $3 AND estudio_id = $4
+		RETURNING id, estudio_id, banco_id, rut, nombre, contacto, created_at`
+	row := r.pool.QueryRow(ctx, q, nombre, contacto, id, estudioID)
+	return scanCliente(row)
+}
+
 func (r *ClienteRepo) GetByID(ctx context.Context, estudioID, id string) (*domain.Cliente, error) {
 	const q = `SELECT id, estudio_id, banco_id, rut, nombre, contacto, created_at
 		FROM clientes WHERE id = $1 AND estudio_id = $2`

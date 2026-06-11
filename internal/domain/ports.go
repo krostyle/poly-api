@@ -163,6 +163,7 @@ type UpsertClienteInput struct {
 type ClienteRepository interface {
 	Upsert(ctx context.Context, in UpsertClienteInput) (*Cliente, error)
 	GetByID(ctx context.Context, estudioID, id string) (*Cliente, error)
+	Update(ctx context.Context, estudioID, id, nombre string, contacto *string) (*Cliente, error)
 }
 
 // NewOperacionInput holds data for creating an operation.
