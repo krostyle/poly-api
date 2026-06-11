@@ -135,6 +135,7 @@ type CasoRepository interface {
 	ListRich(ctx context.Context, estudioID string, filters CaseFilters) ([]*CasoListItem, int, error)
 	UpdateState(ctx context.Context, id string, newState estado.Estado) error
 	GetDetalle(ctx context.Context, estudioID, id string) (*CasoDetalle, error)
+	Delete(ctx context.Context, estudioID, casoID string) error
 }
 
 // CaseFilters parameterizes list queries.
@@ -146,6 +147,7 @@ type CaseFilters struct {
 	Query         string  // ILIKE search on cliente nombre/rut
 	Limit         int
 	Offset        int
+	ExcluirCierre bool // when true, hides casos in CIERRE state from the list
 }
 
 // UpsertClienteInput holds data for create-or-update of a client.

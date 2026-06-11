@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -98,7 +99,8 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 		  AND c.banco_id   = ANY($2::uuid[])
 		  AND ($3 = ''   OR c.estado::text = $3)
 		  AND ($4::uuid IS NULL OR c.abogado_id = $4::uuid)
-		  AND ($5 = ''   OR cl.nombre ILIKE '%' || $5 || '%' OR cl.rut ILIKE '%' || $5 || '%')`
+		  AND ($5 = ''   OR cl.nombre ILIKE '%' || $5 || '%' OR cl.rut ILIKE '%' || $5 || '%')
+		  AND (NOT $6 OR c.estado::text != 'CIERRE')`
 
 	var totalRaw int64
 	estFilter := ""
@@ -109,7 +111,7 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 	if filters.AbogadoID != nil {
 		abogadoFilter = *filters.AbogadoID
 	}
-	if err := r.pool.QueryRow(ctx, countQ, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query).Scan(&totalRaw); err != nil {
+	if err := r.pool.QueryRow(ctx, countQ, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query, filters.ExcluirCierre).Scan(&totalRaw); err != nil {
 		return nil, 0, err
 	}
 	total := int(totalRaw)
@@ -124,8 +126,9 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 		  AND ($3 = ''   OR c.estado::text = $3)
 		  AND ($4::uuid IS NULL OR c.abogado_id = $4::uuid)
 		  AND ($5 = ''   OR cl.nombre ILIKE '%' || $5 || '%' OR cl.rut ILIKE '%' || $5 || '%')
-		ORDER BY c.created_at DESC LIMIT $6 OFFSET $7`
-	rows, err := r.pool.Query(ctx, q, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query, limit, filters.Offset)
+		  AND (NOT $6 OR c.estado::text != 'CIERRE')
+		ORDER BY c.created_at DESC LIMIT $7 OFFSET $8`
+	rows, err := r.pool.Query(ctx, q, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query, filters.ExcluirCierre, limit, filters.Offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -194,6 +197,29 @@ func (r *CasoRepo) GetDetalle(ctx context.Context, estudioID, id string) (*domai
 	}
 
 	return &domain.CasoDetalle{Caso: c, Cliente: &cliente, Operaciones: ops}, nil
+}
+
+func (r *CasoRepo) Delete(ctx context.Context, estudioID, casoID string) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	for _, table := range []string{"plazos", "documentos", "auditoria", "operaciones"} {
+		if _, err := tx.Exec(ctx, "DELETE FROM "+table+" WHERE caso_id = $1", casoID); err != nil {
+			return fmt.Errorf("delete from %s: %w", table, err)
+		}
+	}
+
+	tag, err := tx.Exec(ctx, "DELETE FROM casos WHERE id = $1 AND estudio_id = $2", casoID, estudioID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("not found")
+	}
+	return tx.Commit(ctx)
 }
 
 type casoScanner interface {

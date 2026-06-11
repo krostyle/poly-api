@@ -112,6 +112,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Post("/", casosH.Crear)
 			r.Get("/{id}", casosH.Obtener)
 			r.Patch("/{id}", casosH.Actualizar)
+			r.Delete("/{id}", casosH.Eliminar)
 			r.Post("/{id}/transicion", casosH.Transicionar)
 			r.Get("/{id}/historial", casosH.Historial)
 			r.Post("/{id}/operaciones", operacionesH.Crear)

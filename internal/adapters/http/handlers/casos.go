@@ -175,6 +175,10 @@ func (h *CasosHandler) Listar(w http.ResponseWriter, r *http.Request) {
 			filters.AbogadoID = &aid
 		}
 	}
+	if q.Get("excluir_cierre") != "false" {
+		// default: excluir CIERRE; only show them when explicitly set to "false"
+		filters.ExcluirCierre = true
+	}
 
 	items, total, err := h.repo.ListRich(r.Context(), estudioID, filters)
 	if err != nil {
@@ -373,6 +377,33 @@ func (h *CasosHandler) Historial(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{"historial": resp})
+}
+
+func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
+	rol := middleware.RolFromCtx(r.Context())
+	if rol != "ADMIN" {
+		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		return
+	}
+
+	estudioID := middleware.EstudioIDFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+
+	c, err := h.repo.GetByID(r.Context(), estudioID, id)
+	if err != nil {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+		return
+	}
+	if c.Estado != estado.Ingreso {
+		http.Error(w, `{"error":"solo se pueden eliminar casos en estado INGRESO"}`, http.StatusConflict)
+		return
+	}
+
+	if err := h.repo.Delete(r.Context(), estudioID, id); err != nil {
+		http.Error(w, `{"error":"could not delete caso"}`, http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // isBadRequest returns true if the error is a domain validation error, not a server error.
