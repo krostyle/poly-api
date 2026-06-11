@@ -3,9 +3,11 @@ package casos
 import (
 	"context"
 	"errors"
+	"time"
 
 	"poly.app/api/internal/domain"
 	"poly.app/api/internal/domain/estado"
+	"poly.app/api/internal/domain/plazo"
 )
 
 type TransitionStateInput struct {
@@ -17,12 +19,19 @@ type TransitionStateInput struct {
 }
 
 type TransitionStateUseCase struct {
-	casos   domain.CasoRepository
-	auditor domain.AuditLogger
+	casos    domain.CasoRepository
+	plazos   domain.PlazoRepository
+	feriados domain.FeriadoProvider
+	auditor  domain.AuditLogger
 }
 
-func NewTransitionStateUseCase(casos domain.CasoRepository, auditor domain.AuditLogger) *TransitionStateUseCase {
-	return &TransitionStateUseCase{casos: casos, auditor: auditor}
+func NewTransitionStateUseCase(
+	casos domain.CasoRepository,
+	plazos domain.PlazoRepository,
+	feriados domain.FeriadoProvider,
+	auditor domain.AuditLogger,
+) *TransitionStateUseCase {
+	return &TransitionStateUseCase{casos: casos, plazos: plazos, feriados: feriados, auditor: auditor}
 }
 
 func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStateInput) error {
@@ -42,6 +51,8 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 		return err
 	}
 
+	uc.createTransitionPlazos(ctx, in.CasoID, in.NewState)
+
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
 		EstudioID: in.EstudioID,
@@ -54,4 +65,42 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 		},
 	})
 	return nil
+}
+
+func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, casoID string, newState estado.Estado) {
+	now := time.Now()
+	horizon := now.AddDate(0, 3, 0)
+	holidays, _ := uc.feriados.GetHolidays(ctx, now, horizon)
+
+	type spec struct {
+		tipo plazo.TipoPlazo
+		dias int
+	}
+
+	var specs []spec
+	switch newState {
+	case estado.Suspension:
+		specs = []spec{{plazo.TipoPrecautelar, 13}}
+	case estado.Judicializacion:
+		specs = []spec{{plazo.TipoDemanda, 10}}
+	case estado.Restitucion:
+		specs = []spec{
+			{plazo.TipoRestitucionRechazo, 3},
+			{plazo.TipoDemanda, 10},
+		}
+	default:
+		return
+	}
+
+	var inputs []domain.NewPlazoInput
+	for _, s := range specs {
+		inputs = append(inputs, domain.NewPlazoInput{
+			CasoID:      casoID,
+			Tipo:        s.tipo,
+			FechaInicio: now,
+			DiasHabiles: s.dias,
+			FechaLimite: plazo.CalculateDeadline(now, s.dias, holidays),
+		})
+	}
+	_ = uc.plazos.CreateBatch(ctx, inputs)
 }

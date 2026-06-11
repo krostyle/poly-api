@@ -1,13 +1,105 @@
 package handlers
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+	"time"
 
-type PlazosHandler struct{}
+	"github.com/go-chi/chi/v5"
+	appplazos "poly.app/api/internal/application/plazos"
+	"poly.app/api/internal/domain"
+	"poly.app/api/internal/domain/plazo"
+)
 
-func NewPlazosHandler() *PlazosHandler {
-	return &PlazosHandler{}
+type PlazosHandler struct {
+	repo     domain.PlazoRepository
+	feriados domain.FeriadoProvider
+	recalc   *appplazos.RecalcDeadlinesUseCase
+}
+
+func NewPlazosHandler(repo domain.PlazoRepository, feriados domain.FeriadoProvider) *PlazosHandler {
+	return &PlazosHandler{
+		repo:     repo,
+		feriados: feriados,
+		recalc:   appplazos.NewRecalcDeadlinesUseCase(repo, feriados),
+	}
+}
+
+type plazoResponse struct {
+	ID            string  `json:"id"`
+	Tipo          string  `json:"tipo"`
+	FechaInicio   string  `json:"fecha_inicio"`
+	FechaLimite   string  `json:"fecha_limite"`
+	DiasHabiles   int     `json:"dias_habiles"`
+	DiasRestantes int     `json:"dias_restantes"`
+	Semaforo      string  `json:"semaforo"`
+	Cumplido      bool    `json:"cumplido"`
+	FechaCumplido *string `json:"fecha_cumplido,omitempty"`
 }
 
 func (h *PlazosHandler) ListarPorCaso(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	casoID := chi.URLParam(r, "id")
+	ctx := r.Context()
+
+	stored, err := h.repo.ListByCase(ctx, casoID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	today := time.Now()
+	var from, to time.Time
+	for _, p := range stored {
+		if !p.Completed {
+			if from.IsZero() || p.FechaInicio.Before(from) {
+				from = p.FechaInicio
+			}
+			if to.IsZero() || p.FechaLimite.After(to) {
+				to = p.FechaLimite.AddDate(0, 0, 30)
+			}
+		}
+	}
+
+	var holidays []time.Time
+	if !from.IsZero() {
+		holidays, _ = h.feriados.GetHolidays(ctx, from, to)
+	}
+
+	result := make([]plazoResponse, 0, len(stored))
+	for _, p := range stored {
+		remaining := 0
+		sem := plazo.Verde
+		if !p.Completed {
+			remaining = plazo.RemainingBusinessDays(today, p.FechaLimite, holidays)
+			sem = plazo.EvaluateSemaforo(remaining, plazo.DefaultThresholds)
+		}
+
+		resp := plazoResponse{
+			ID:            p.ID,
+			Tipo:          string(p.Tipo),
+			FechaInicio:   p.FechaInicio.Format("2006-01-02"),
+			FechaLimite:   p.FechaLimite.Format("2006-01-02"),
+			DiasHabiles:   p.DiasHabiles,
+			DiasRestantes: remaining,
+			Semaforo:      string(sem),
+			Cumplido:      p.Completed,
+		}
+		if p.FechaCumplido != nil {
+			s := p.FechaCumplido.Format("2006-01-02")
+			resp.FechaCumplido = &s
+		}
+		result = append(result, resp)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"plazos": result})
+}
+
+func (h *PlazosHandler) CumplirPlazo(w http.ResponseWriter, r *http.Request) {
+	plazoID := chi.URLParam(r, "plazoID")
+	if err := h.repo.MarkCompleted(r.Context(), plazoID, time.Now()); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -8,6 +8,7 @@ import (
 	"poly.app/api/internal/domain"
 	"poly.app/api/internal/domain/caso"
 	"poly.app/api/internal/domain/estado"
+	"poly.app/api/internal/domain/plazo"
 )
 
 type CreateCaseInput struct {
@@ -23,11 +24,19 @@ type CreateCaseInput struct {
 type CreateCaseUseCase struct {
 	casos    domain.CasoRepository
 	clientes domain.ClienteRepository
+	plazos   domain.PlazoRepository
+	feriados domain.FeriadoProvider
 	auditor  domain.AuditLogger
 }
 
-func NewCreateCaseUseCase(casos domain.CasoRepository, clientes domain.ClienteRepository, auditor domain.AuditLogger) *CreateCaseUseCase {
-	return &CreateCaseUseCase{casos: casos, clientes: clientes, auditor: auditor}
+func NewCreateCaseUseCase(
+	casos domain.CasoRepository,
+	clientes domain.ClienteRepository,
+	plazos domain.PlazoRepository,
+	feriados domain.FeriadoProvider,
+	auditor domain.AuditLogger,
+) *CreateCaseUseCase {
+	return &CreateCaseUseCase{casos: casos, clientes: clientes, plazos: plazos, feriados: feriados, auditor: auditor}
 }
 
 func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*domain.CasoDetalle, error) {
@@ -56,6 +65,8 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		return nil, err
 	}
 
+	uc.createInitialPlazos(ctx, c.ID, in.FechaDJ)
+
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
 		EstudioID: in.EstudioID,
@@ -70,4 +81,30 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		Cliente:     cliente,
 		Operaciones: nil,
 	}, nil
+}
+
+func (uc *CreateCaseUseCase) createInitialPlazos(ctx context.Context, casoID string, fechaDJ time.Time) {
+	horizon := fechaDJ.AddDate(0, 3, 0)
+	holidays, _ := uc.feriados.GetHolidays(ctx, fechaDJ, horizon)
+
+	specs := []struct {
+		tipo plazo.TipoPlazo
+		dias int
+	}{
+		{plazo.TipoAnalisisInterno, 5},
+		{plazo.TipoRestitucion, 13},
+		{plazo.TipoAsignacion, 7},
+	}
+
+	var inputs []domain.NewPlazoInput
+	for _, s := range specs {
+		inputs = append(inputs, domain.NewPlazoInput{
+			CasoID:      casoID,
+			Tipo:        s.tipo,
+			FechaInicio: fechaDJ,
+			DiasHabiles: s.dias,
+			FechaLimite: plazo.CalculateDeadline(fechaDJ, s.dias, holidays),
+		})
+	}
+	_ = uc.plazos.CreateBatch(ctx, inputs)
 }

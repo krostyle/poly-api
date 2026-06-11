@@ -11,6 +11,7 @@ import (
 	appauth "poly.app/api/internal/application/auth"
 	appcasos "poly.app/api/internal/application/casos"
 	appops "poly.app/api/internal/application/operaciones"
+	"poly.app/api/internal/adapters/feriados"
 	"poly.app/api/internal/adapters/http/handlers"
 	"poly.app/api/internal/adapters/http/middleware"
 	"poly.app/api/internal/adapters/persistence"
@@ -25,12 +26,14 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	clientesRepo := persistence.NewClienteRepo(pool)
 	operacionesRepo := persistence.NewOperacionRepo(pool)
 	auditRepo := persistence.NewAuditRepo(pool)
+	plazosRepo := persistence.NewPlazoRepo(pool)
+	feriadosProvider := feriados.NewDBFeriadoProvider(pool)
 
 	// ── Use cases ────────────────────────────────────────────────────────────
 	bootstrapUC := appauth.NewBootstrapUseCase(estudiosRepo, usuariosRepo, bancosRepo)
-	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, auditRepo)
+	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, plazosRepo, feriadosProvider, auditRepo)
 	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, auditRepo)
-	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, auditRepo)
+	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
@@ -39,7 +42,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	casosH := handlers.NewCasosHandler(createCaseUC, updateCaseUC, transicionUC, casosRepo, auditRepo)
 	clientesH := handlers.NewClientesHandler(clientesRepo)
 	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
-	plazosH := handlers.NewPlazosHandler()
+	plazosH := handlers.NewPlazosHandler(plazosRepo, feriadosProvider)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -99,10 +102,8 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Get("/{id}/historial", casosH.Historial)
 			r.Post("/{id}/operaciones", operacionesH.Crear)
 			r.Get("/{id}/operaciones", operacionesH.Listar)
-		})
-
-		r.Route("/v1/casos/{casoID}/plazos", func(r chi.Router) {
-			r.Get("/", plazosH.ListarPorCaso)
+			r.Get("/{id}/plazos", plazosH.ListarPorCaso)
+			r.Post("/{id}/plazos/{plazoID}/cumplir", plazosH.CumplirPlazo)
 		})
 	})
 
