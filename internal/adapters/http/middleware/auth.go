@@ -40,9 +40,13 @@ func RolFromCtx(ctx context.Context) string {
 
 // RequireAuth reads the Clerk session claims injected by clerkhttp.WithHeaderAuthorization,
 // looks up the estudio and usuario in the DB, and injects the tenant scope into context.
+//
+// ADMINs receive the full list of estudio banco IDs so they can see all cases regardless
+// of which bancos they are explicitly assigned to in usuarios_bancos.
 func RequireAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 	estudiosRepo := persistence.NewEstudioRepo(pool)
 	usuariosRepo := persistence.NewUsuarioRepo(pool)
+	bancosRepo := persistence.NewBancoRepo(pool)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +73,16 @@ func RequireAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 				return
 			}
 
-			bancoIDs, _ := usuariosRepo.GetBancoIDs(r.Context(), usuario.ID)
+			var bancoIDs []string
+			if usuario.Rol == "ADMIN" {
+				// Admins see all cases across all bancos of the estudio.
+				bancos, _ := bancosRepo.List(r.Context(), estudio.ID)
+				for _, b := range bancos {
+					bancoIDs = append(bancoIDs, b.ID)
+				}
+			} else {
+				bancoIDs, _ = usuariosRepo.GetBancoIDs(r.Context(), usuario.ID)
+			}
 
 			ctx := context.WithValue(r.Context(), keyEstudioID, estudio.ID)
 			ctx = context.WithValue(ctx, keyUsuarioID, usuario.ID)
