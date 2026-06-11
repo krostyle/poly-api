@@ -119,6 +119,10 @@ func main() {
 		log.Fatalf("migrations failed: %v", err)
 	}
 
+	if os.Getenv("BLOB_READ_WRITE_TOKEN") == "" {
+		log.Println("WARNING: BLOB_READ_WRITE_TOKEN is not set — document uploads will fail")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
