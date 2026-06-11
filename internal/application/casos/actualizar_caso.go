@@ -15,6 +15,7 @@ type UpdateCaseInput struct {
 	NumeroOT       *string
 	DenunciaValida *bool
 	FechaDenuncia  *time.Time
+	FechaDJ        *time.Time
 }
 
 type UpdateCaseUseCase struct {
@@ -43,6 +44,9 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	}
 	if in.FechaDenuncia != nil {
 		c.FechaDenuncia = in.FechaDenuncia
+	}
+	if in.FechaDJ != nil {
+		c.FechaDJ = in.FechaDJ
 	}
 
 	if err := uc.casos.Update(ctx, c); err != nil {

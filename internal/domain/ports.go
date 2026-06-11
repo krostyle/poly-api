@@ -92,7 +92,7 @@ type CasoListItem struct {
 	AbogadoID      *string
 	NumeroOT       *string
 	Estado         estado.Estado
-	FechaDJ        time.Time
+	FechaDJ        *time.Time
 	DenunciaValida bool
 	CreatedAt      time.Time
 }

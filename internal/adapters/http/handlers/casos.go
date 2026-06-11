@@ -43,7 +43,7 @@ type casoListItemJSON struct {
 	AbogadoID      *string `json:"abogado_id"`
 	NumeroOT       *string `json:"numero_ot"`
 	Estado         string  `json:"estado"`
-	FechaDJ        string  `json:"fecha_dj"`
+	FechaDJ        *string `json:"fecha_dj"`
 	DenunciaValida bool    `json:"denuncia_valida"`
 	CreatedAt      string  `json:"created_at"`
 }
@@ -56,7 +56,7 @@ type casoJSON struct {
 	AbogadoID      *string `json:"abogado_id"`
 	NumeroOT       *string `json:"numero_ot"`
 	Estado         string  `json:"estado"`
-	FechaDJ        string  `json:"fecha_dj"`
+	FechaDJ        *string `json:"fecha_dj"`
 	FechaDenuncia  *string `json:"fecha_denuncia"`
 	DenunciaValida bool    `json:"denuncia_valida"`
 	MotivoTermino  *string `json:"motivo_termino"`
@@ -89,6 +89,14 @@ type casoDetalleJSON struct {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+func formatDatePtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("2006-01-02")
+	return &s
+}
+
 func toCasoListItemJSON(item *domain.CasoListItem) casoListItemJSON {
 	return casoListItemJSON{
 		ID:             item.ID,
@@ -100,7 +108,7 @@ func toCasoListItemJSON(item *domain.CasoListItem) casoListItemJSON {
 		AbogadoID:      item.AbogadoID,
 		NumeroOT:       item.NumeroOT,
 		Estado:         string(item.Estado),
-		FechaDJ:        item.FechaDJ.Format("2006-01-02"),
+		FechaDJ:        formatDatePtr(item.FechaDJ),
 		DenunciaValida: item.DenunciaValida,
 		CreatedAt:      item.CreatedAt.UTC().Format(time.RFC3339),
 	}
@@ -108,11 +116,7 @@ func toCasoListItemJSON(item *domain.CasoListItem) casoListItemJSON {
 
 func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 	c := d.Caso
-	var fechaDen *string
-	if c.FechaDenuncia != nil {
-		s := c.FechaDenuncia.Format("2006-01-02")
-		fechaDen = &s
-	}
+	fechaDen := formatDatePtr(c.FechaDenuncia)
 	ops := make([]operacionJSON, 0, len(d.Operaciones))
 	for _, op := range d.Operaciones {
 		ops = append(ops, operacionJSON{
@@ -134,7 +138,7 @@ func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 			AbogadoID:      c.AbogadoID,
 			NumeroOT:       c.NumeroOT,
 			Estado:         string(c.Estado),
-			FechaDJ:        c.FechaDJ.Format("2006-01-02"),
+			FechaDJ:        formatDatePtr(c.FechaDJ),
 			FechaDenuncia:  fechaDen,
 			DenunciaValida: c.DenunciaValida,
 			MotivoTermino:  c.MotivoTermino,
@@ -204,36 +208,39 @@ func (h *CasosHandler) Crear(w http.ResponseWriter, r *http.Request) {
 		ClienteRUT      string  `json:"cliente_rut"`
 		ClienteNombre   string  `json:"cliente_nombre"`
 		ClienteContacto *string `json:"cliente_contacto"`
-		FechaDJ         string  `json:"fecha_dj"`
+		FechaDJ         *string `json:"fecha_dj"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
 		return
 	}
-	if req.BancoID == "" || req.ClienteRUT == "" || req.ClienteNombre == "" || req.FechaDJ == "" {
-		http.Error(w, `{"error":"banco_id, cliente_rut, cliente_nombre and fecha_dj are required"}`, http.StatusBadRequest)
+	if req.BancoID == "" || req.ClienteRUT == "" || req.ClienteNombre == "" {
+		http.Error(w, `{"error":"banco_id, cliente_rut and cliente_nombre are required"}`, http.StatusBadRequest)
 		return
 	}
 
-	fechaDJ, err := time.Parse("2006-01-02", req.FechaDJ)
-	if err != nil {
-		http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
-		return
-	}
-	if fechaDJ.After(time.Now()) {
-		http.Error(w, `{"error":"fecha_dj cannot be in the future"}`, http.StatusBadRequest)
-		return
-	}
-
-	detalle, err := h.crear.Execute(r.Context(), appcasos.CreateCaseInput{
+	input := appcasos.CreateCaseInput{
 		EstudioID:       estudioID,
 		BancoID:         req.BancoID,
 		ClienteRUT:      req.ClienteRUT,
 		ClienteNombre:   req.ClienteNombre,
 		ClienteContacto: req.ClienteContacto,
-		FechaDJ:         fechaDJ,
 		UsuarioID:       usuarioID,
-	})
+	}
+	if req.FechaDJ != nil && *req.FechaDJ != "" {
+		t, err := time.Parse("2006-01-02", *req.FechaDJ)
+		if err != nil {
+			http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
+			return
+		}
+		if t.After(time.Now()) {
+			http.Error(w, `{"error":"fecha_dj cannot be in the future"}`, http.StatusBadRequest)
+			return
+		}
+		input.FechaDJ = &t
+	}
+
+	detalle, err := h.crear.Execute(r.Context(), input)
 	if err != nil {
 		http.Error(w, `{"error":"could not create caso"}`, http.StatusInternalServerError)
 		return
@@ -268,6 +275,7 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		NumeroOT       *string `json:"numero_ot"`
 		DenunciaValida *bool   `json:"denuncia_valida"`
 		FechaDenuncia  *string `json:"fecha_denuncia"`
+		FechaDJ        *string `json:"fecha_dj"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -289,6 +297,14 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		input.FechaDenuncia = &t
+	}
+	if req.FechaDJ != nil && *req.FechaDJ != "" {
+		t, err := time.Parse("2006-01-02", *req.FechaDJ)
+		if err != nil {
+			http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
+			return
+		}
+		input.FechaDJ = &t
 	}
 
 	detalle, err := h.actualizar.Execute(r.Context(), input)

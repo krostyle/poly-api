@@ -42,9 +42,9 @@ func (r *CasoRepo) GetByID(ctx context.Context, estudioID, id string) (*caso.Cas
 
 func (r *CasoRepo) Update(ctx context.Context, c *caso.Caso) error {
 	const q = `UPDATE casos SET abogado_id=$2, numero_ot=$3, fecha_denuncia=$4,
-		denuncia_valida=$5, motivo_termino=$6, updated_at=now() WHERE id=$1`
+		denuncia_valida=$5, motivo_termino=$6, fecha_dj=$7, updated_at=now() WHERE id=$1`
 	_, err := r.pool.Exec(ctx, q,
-		c.ID, c.AbogadoID, c.NumeroOT, c.FechaDenuncia, c.DenunciaValida, c.MotivoTermino,
+		c.ID, c.AbogadoID, c.NumeroOT, c.FechaDenuncia, c.DenunciaValida, c.MotivoTermino, c.FechaDJ,
 	)
 	return err
 }
@@ -138,15 +138,17 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 	for rows.Next() {
 		var item domain.CasoListItem
 		var est string
+		var fechaDJ *time.Time
 		if err := rows.Scan(
 			&item.ID, &item.BancoID, &item.BancoNombre,
 			&item.ClienteID, &item.ClienteRUT, &item.ClienteNombre,
 			&item.AbogadoID, &item.NumeroOT, &est,
-			&item.FechaDJ, &item.DenunciaValida, &item.CreatedAt,
+			&fechaDJ, &item.DenunciaValida, &item.CreatedAt,
 		); err != nil {
 			return nil, 0, err
 		}
 		item.Estado = estado.Estado(est)
+		item.FechaDJ = fechaDJ
 		items = append(items, &item)
 	}
 	return items, total, rows.Err()
@@ -229,16 +231,18 @@ type casoScanner interface {
 func scanCaso(row casoScanner) (*caso.Caso, error) {
 	var c caso.Caso
 	var est string
+	var fechaDJ *time.Time
 	var createdAt, updatedAt time.Time
 	err := row.Scan(
 		&c.ID, &c.EstudioID, &c.BancoID, &c.ClienteID, &c.AbogadoID, &c.NumeroOT,
-		&est, &c.FechaDJ, &c.FechaDenuncia, &c.DenunciaValida, &c.MotivoTermino,
+		&est, &fechaDJ, &c.FechaDenuncia, &c.DenunciaValida, &c.MotivoTermino,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 	c.Estado = estado.Estado(est)
+	c.FechaDJ = fechaDJ
 	c.CreatedAt = createdAt
 	c.UpdatedAt = updatedAt
 	return &c, nil

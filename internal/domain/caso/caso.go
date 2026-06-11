@@ -74,7 +74,7 @@ type Caso struct {
 	AbogadoID      *string
 	NumeroOT       *string
 	Estado         estado.Estado
-	FechaDJ        time.Time
+	FechaDJ        *time.Time
 	FechaDenuncia  *time.Time
 	DenunciaValida bool
 	MotivoTermino  *string
