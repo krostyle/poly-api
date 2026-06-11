@@ -36,7 +36,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	bootstrapH := handlers.NewBootstrapHandler(bootstrapUC, estudiosRepo, usuariosRepo, bancosRepo)
 	bancosH := handlers.NewBancosHandler(bancosRepo, usuariosRepo)
-	casosH := handlers.NewCasosHandler(createCaseUC, updateCaseUC, transicionUC, casosRepo)
+	casosH := handlers.NewCasosHandler(createCaseUC, updateCaseUC, transicionUC, casosRepo, auditRepo)
 	clientesH := handlers.NewClientesHandler(clientesRepo)
 	operacionesH := handlers.NewOperacionesHandler(agregarOpUC, operacionesRepo)
 	plazosH := handlers.NewPlazosHandler()
@@ -95,6 +95,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Get("/{id}", casosH.Obtener)
 			r.Patch("/{id}", casosH.Actualizar)
 			r.Post("/{id}/transicion", casosH.Transicionar)
+			r.Get("/{id}/historial", casosH.Historial)
 			r.Post("/{id}/operaciones", operacionesH.Crear)
 			r.Get("/{id}/operaciones", operacionesH.Listar)
 		})

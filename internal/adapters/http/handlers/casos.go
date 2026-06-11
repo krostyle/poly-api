@@ -18,6 +18,7 @@ type CasosHandler struct {
 	actualizar *appcasos.UpdateCaseUseCase
 	transicion *appcasos.TransitionStateUseCase
 	repo       domain.CasoRepository
+	historial  domain.HistorialReader
 }
 
 func NewCasosHandler(
@@ -25,8 +26,9 @@ func NewCasosHandler(
 	actualizar *appcasos.UpdateCaseUseCase,
 	transicion *appcasos.TransitionStateUseCase,
 	repo domain.CasoRepository,
+	historial domain.HistorialReader,
 ) *CasosHandler {
-	return &CasosHandler{crear: crear, actualizar: actualizar, transicion: transicion, repo: repo}
+	return &CasosHandler{crear: crear, actualizar: actualizar, transicion: transicion, repo: repo, historial: historial}
 }
 
 // ── JSON response types ──────────────────────────────────────────────────────
@@ -317,6 +319,38 @@ func (h *CasosHandler) Transicionar(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(toCasoDetalleJSON(detalle))
+}
+
+func (h *CasosHandler) Historial(w http.ResponseWriter, r *http.Request) {
+	estudioID := middleware.EstudioIDFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+
+	entries, err := h.historial.ListByCaso(r.Context(), estudioID, id)
+	if err != nil {
+		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	type entryJSON struct {
+		ID             string `json:"id"`
+		UsuarioNombre  string `json:"usuario_nombre"`
+		EstadoAnterior string `json:"estado_anterior"`
+		EstadoNuevo    string `json:"estado_nuevo"`
+		CreatedAt      string `json:"created_at"`
+	}
+	resp := make([]entryJSON, 0, len(entries))
+	for _, e := range entries {
+		resp = append(resp, entryJSON{
+			ID:             e.ID,
+			UsuarioNombre:  e.UsuarioNombre,
+			EstadoAnterior: e.EstadoAnterior,
+			EstadoNuevo:    e.EstadoNuevo,
+			CreatedAt:      e.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"historial": resp})
 }
 
 // isBadRequest returns true if the error is a domain validation error, not a server error.
