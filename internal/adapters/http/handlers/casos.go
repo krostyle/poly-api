@@ -155,12 +155,28 @@ func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 
 func (h *CasosHandler) Listar(w http.ResponseWriter, r *http.Request) {
 	estudioID := middleware.EstudioIDFromCtx(r.Context())
+	usuarioID := middleware.UsuarioIDFromCtx(r.Context())
 	bancoIDs := middleware.BancoIDsFromCtx(r.Context())
 
-	items, total, err := h.repo.ListRich(r.Context(), estudioID, domain.CaseFilters{
-		BancoIDs: bancoIDs,
-		Limit:    50,
-	})
+	q := r.URL.Query()
+	filters := domain.CaseFilters{
+		BancoIDs:      bancoIDs,
+		BancoIDFilter: q.Get("banco_id"),
+		Query:         q.Get("q"),
+	}
+	if est := q.Get("estado"); est != "" {
+		e := estado.Estado(est)
+		filters.Estado = &e
+	}
+	if aid := q.Get("abogado_id"); aid != "" {
+		if aid == "me" {
+			filters.AbogadoID = &usuarioID
+		} else {
+			filters.AbogadoID = &aid
+		}
+	}
+
+	items, total, err := h.repo.ListRich(r.Context(), estudioID, filters)
 	if err != nil {
 		http.Error(w, `{"error":"internal error"}`, http.StatusInternalServerError)
 		return

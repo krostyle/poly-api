@@ -81,24 +81,51 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 		return nil, 0, nil
 	}
 	limit := filters.Limit
-	if limit == 0 {
+	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	const countQ = `SELECT COUNT(*) FROM casos WHERE estudio_id = $1 AND banco_id = ANY($2::uuid[])`
+
+	// Resolve optional banco sub-filter: intersect with allowed scope.
+	bancoScope := filters.BancoIDs
+	if filters.BancoIDFilter != "" {
+		bancoScope = []string{filters.BancoIDFilter}
+	}
+
+	countQ := `SELECT COUNT(*)
+		FROM casos c
+		JOIN clientes cl ON cl.id = c.cliente_id
+		WHERE c.estudio_id = $1
+		  AND c.banco_id   = ANY($2::uuid[])
+		  AND ($3 = ''   OR c.estado::text = $3)
+		  AND ($4::uuid IS NULL OR c.abogado_id = $4::uuid)
+		  AND ($5 = ''   OR cl.nombre ILIKE '%' || $5 || '%' OR cl.rut ILIKE '%' || $5 || '%')`
+
 	var totalRaw int64
-	if err := r.pool.QueryRow(ctx, countQ, estudioID, filters.BancoIDs).Scan(&totalRaw); err != nil {
+	estFilter := ""
+	if filters.Estado != nil {
+		estFilter = string(*filters.Estado)
+	}
+	var abogadoFilter interface{} = nil
+	if filters.AbogadoID != nil {
+		abogadoFilter = *filters.AbogadoID
+	}
+	if err := r.pool.QueryRow(ctx, countQ, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query).Scan(&totalRaw); err != nil {
 		return nil, 0, err
 	}
 	total := int(totalRaw)
 
-	const q = `SELECT c.id, c.banco_id, b.nombre, c.cliente_id, cl.rut, cl.nombre,
+	q := `SELECT c.id, c.banco_id, b.nombre, c.cliente_id, cl.rut, cl.nombre,
 		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.denuncia_valida, c.created_at
 		FROM casos c
 		JOIN bancos   b  ON b.id  = c.banco_id
 		JOIN clientes cl ON cl.id = c.cliente_id
-		WHERE c.estudio_id = $1 AND c.banco_id = ANY($2::uuid[])
-		ORDER BY c.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := r.pool.Query(ctx, q, estudioID, filters.BancoIDs, limit, filters.Offset)
+		WHERE c.estudio_id = $1
+		  AND c.banco_id   = ANY($2::uuid[])
+		  AND ($3 = ''   OR c.estado::text = $3)
+		  AND ($4::uuid IS NULL OR c.abogado_id = $4::uuid)
+		  AND ($5 = ''   OR cl.nombre ILIKE '%' || $5 || '%' OR cl.rut ILIKE '%' || $5 || '%')
+		ORDER BY c.created_at DESC LIMIT $6 OFFSET $7`
+	rows, err := r.pool.Query(ctx, q, estudioID, bancoScope, estFilter, abogadoFilter, filters.Query, limit, filters.Offset)
 	if err != nil {
 		return nil, 0, err
 	}

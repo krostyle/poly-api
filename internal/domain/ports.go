@@ -139,11 +139,13 @@ type CasoRepository interface {
 
 // CaseFilters parameterizes list queries.
 type CaseFilters struct {
-	BancoIDs  []string
-	Estado    *estado.Estado
-	AbogadoID *string
-	Limit     int
-	Offset    int
+	BancoIDs      []string
+	BancoIDFilter string // additional filter within allowed bancos
+	Estado        *estado.Estado
+	AbogadoID     *string // if set to the literal "me" the handler resolves it before calling repo
+	Query         string  // ILIKE search on cliente nombre/rut
+	Limit         int
+	Offset        int
 }
 
 // UpsertClienteInput holds data for create-or-update of a client.
