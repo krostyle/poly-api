@@ -16,6 +16,9 @@ type TransitionStateInput struct {
 	UsuarioID         string
 	NewState          estado.Estado
 	TerminationReason *string
+	// Forzar bypasses the state machine for administrative corrections.
+	// The audit entry records forzado:true so it is traceable.
+	Forzar bool
 }
 
 type TransitionStateUseCase struct {
@@ -39,8 +42,10 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	if err != nil {
 		return err
 	}
-	if err := c.ValidateTransition(in.NewState); err != nil {
-		return err
+	if !in.Forzar {
+		if err := c.ValidateTransition(in.NewState); err != nil {
+			return err
+		}
 	}
 	if in.NewState == estado.Terminado && in.TerminationReason == nil {
 		return errors.New("termination reason is required when closing a caso as TERMINADO")
@@ -54,15 +59,19 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	uc.createTransitionPlazos(ctx, in.CasoID, in.NewState)
 
 	uid := in.UsuarioID
+	detalle := map[string]any{
+		"anterior": string(previousState),
+		"nuevo":    string(in.NewState),
+	}
+	if in.Forzar {
+		detalle["forzado"] = true
+	}
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
 		EstudioID: in.EstudioID,
 		UsuarioID: &uid,
 		CasoID:    &in.CasoID,
 		Accion:    "ESTADO_CAMBIADO",
-		Detalle: map[string]any{
-			"anterior": string(previousState),
-			"nuevo":    string(in.NewState),
-		},
+		Detalle:   detalle,
 	})
 	return nil
 }

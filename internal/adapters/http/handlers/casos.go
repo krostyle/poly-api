@@ -305,6 +305,7 @@ func (h *CasosHandler) Transicionar(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Estado        string  `json:"estado"`
 		MotivoTermino *string `json:"motivo_termino"`
+		Forzar        bool    `json:"forzar"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -317,6 +318,7 @@ func (h *CasosHandler) Transicionar(w http.ResponseWriter, r *http.Request) {
 		UsuarioID:         usuarioID,
 		NewState:          estado.Estado(req.Estado),
 		TerminationReason: req.MotivoTermino,
+		Forzar:            req.Forzar,
 	})
 	if err != nil {
 		if isBadRequest(err, req.Estado) {
