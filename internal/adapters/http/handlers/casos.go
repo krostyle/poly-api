@@ -379,8 +379,8 @@ func (h *CasosHandler) Historial(w http.ResponseWriter, r *http.Request) {
 func isBadRequest(err error, _ string) bool {
 	msg := err.Error()
 	return msg == "invalid transition" ||
-		msg == "valid denuncia required to enter JUDICIALIZACION" ||
-		msg == "termination reason is required when closing a caso as TERMINADO"
+		msg == "termination reason is required when closing a caso as TERMINADO" ||
+		msg == "invalid motivo_termino"
 }
 
 // Ensure old signature compiles — NewCasosHandler replaces the old zero-arg version.

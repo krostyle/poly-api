@@ -56,7 +56,7 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		EstudioID: in.EstudioID,
 		BancoID:   in.BancoID,
 		ClienteID: cliente.ID,
-		Estado:    estado.Llamada,
+		Estado:    estado.Ingreso,
 		FechaDJ:   in.FechaDJ,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

@@ -93,7 +93,7 @@ func (uc *DashboardUseCase) PorVencer(ctx context.Context, estudioID string, ban
 			JOIN plazos   p  ON p.caso_id = c.id
 			WHERE c.estudio_id = $1
 			  AND c.banco_id = ANY($2)
-			  AND c.estado NOT IN ('CIERRE','TERMINADO')
+			  AND c.estado NOT IN ('TERMINADO','CIERRE')
 			  AND p.cumplido = false
 			  AND p.fecha_limite <= $3
 			ORDER BY c.id, p.fecha_limite ASC
@@ -137,7 +137,7 @@ func (uc *DashboardUseCase) Nuevos(ctx context.Context, estudioID string, bancoI
 		JOIN bancos   b  ON b.id  = c.banco_id
 		WHERE c.estudio_id = $1
 		  AND c.banco_id = ANY($2)
-		  AND c.estado = 'LLAMADA'
+		  AND c.estado = 'INGRESO'
 		ORDER BY c.created_at DESC
 		LIMIT 50`,
 		estudioID, bancoIDs,
@@ -171,7 +171,7 @@ func (uc *DashboardUseCase) Estancados(ctx context.Context, estudioID string, ba
 		JOIN bancos   b  ON b.id  = c.banco_id
 		WHERE c.estudio_id = $1
 		  AND c.banco_id = ANY($2)
-		  AND c.estado NOT IN ('CIERRE','TERMINADO')
+		  AND c.estado NOT IN ('TERMINADO','CIERRE')
 		  AND c.updated_at < $3
 		ORDER BY c.updated_at ASC
 		LIMIT 50`,
@@ -218,7 +218,7 @@ func (uc *DashboardUseCase) PorAbogado(ctx context.Context, estudioID string, ba
 		JOIN casos c ON c.abogado_id = u.id
 		WHERE u.estudio_id = $1
 		  AND c.banco_id = ANY($2)
-		  AND c.estado NOT IN ('CIERRE','TERMINADO')
+		  AND c.estado NOT IN ('TERMINADO','CIERRE')
 		GROUP BY u.id, u.nombre
 		ORDER BY total DESC`,
 		estudioID, bancoIDs,

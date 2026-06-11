@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"poly.app/api/internal/domain"
+	"poly.app/api/internal/domain/caso"
 	"poly.app/api/internal/domain/estado"
 	"poly.app/api/internal/domain/plazo"
 )
@@ -47,8 +48,13 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 			return err
 		}
 	}
-	if in.NewState == estado.Terminado && in.TerminationReason == nil {
-		return errors.New("termination reason is required when closing a caso as TERMINADO")
+	if in.NewState == estado.Terminado {
+		if in.TerminationReason == nil || *in.TerminationReason == "" {
+			return errors.New("termination reason is required when closing a caso as TERMINADO")
+		}
+		if !caso.IsValidMotivoTermino(*in.TerminationReason) {
+			return errors.New("invalid motivo_termino")
+		}
 	}
 
 	previousState := c.Estado
@@ -88,15 +94,18 @@ func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, ca
 
 	var specs []spec
 	switch newState {
-	case estado.Suspension:
+	case estado.Prejudicial:
+		// Plazo para que el tribunal resuelva la medida precautoria (13 días hábiles)
 		specs = []spec{{plazo.TipoPrecautelar, 13}}
-	case estado.Judicializacion:
-		specs = []spec{{plazo.TipoDemanda, 10}}
-	case estado.Restitucion:
+	case estado.PagoNormativo:
+		// Tribunal acoge MP: 10 días hábiles para presentar demanda
 		specs = []spec{
-			{plazo.TipoRestitucionRechazo, 3},
 			{plazo.TipoDemanda, 10},
+			{plazo.TipoRestitucionRechazo, 3},
 		}
+	case estado.Judicial:
+		// Demanda presentada: plazo adicional de seguimiento interno
+		specs = []spec{{plazo.TipoDemanda, 10}}
 	default:
 		return
 	}

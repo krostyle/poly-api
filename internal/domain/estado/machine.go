@@ -4,26 +4,37 @@ import "fmt"
 
 type Estado string
 
+// Los 12 estados del flujo Ley 20.009, en orden cronológico típico.
 const (
-	Llamada            Estado = "LLAMADA"
-	Revision           Estado = "REVISION"
-	Suspension         Estado = "SUSPENSION"
-	PreJudicializacion Estado = "PRE_JUDICIALIZACION"
-	Restitucion        Estado = "RESTITUCION"
-	Judicializacion    Estado = "JUDICIALIZACION"
-	Cierre             Estado = "CIERRE"
-	Terminado          Estado = "TERMINADO"
+	Ingreso          Estado = "INGRESO"
+	Revision         Estado = "REVISION"
+	Prejudicial      Estado = "PREJUDICIAL"
+	PagoNormativo    Estado = "PAGO_NORMATIVO"
+	Judicial         Estado = "JUDICIAL"
+	Audiencia        Estado = "AUDIENCIA"
+	Sentencia        Estado = "SENTENCIA"
+	Apelacion        Estado = "APELACION"
+	SentenciaSegunda Estado = "SENTENCIA_SEGUNDA"
+	Cumplimiento     Estado = "CUMPLIMIENTO"
+	Terminado        Estado = "TERMINADO"
+	Cierre           Estado = "CIERRE"
 )
 
+// transitions define el grafo de transiciones permitidas.
+// CIERRE viene después de TERMINADO (corregido respecto al modelo original).
 var transitions = map[Estado][]Estado{
-	Llamada:            {Revision, Terminado},
-	Revision:           {Suspension, Terminado},
-	Suspension:         {PreJudicializacion, Terminado},
-	PreJudicializacion: {Judicializacion, Restitucion, Terminado},
-	Restitucion:        {Judicializacion, Cierre},
-	Judicializacion:    {Cierre, Terminado},
-	Cierre:             {},
-	Terminado:          {},
+	Ingreso:          {Revision, Terminado},
+	Revision:         {Prejudicial, Terminado},
+	Prejudicial:      {PagoNormativo, Judicial, Terminado},
+	PagoNormativo:    {Judicial, Terminado},
+	Judicial:         {Audiencia, Terminado},
+	Audiencia:        {Sentencia, Terminado},
+	Sentencia:        {Apelacion, Cumplimiento, Terminado},
+	Apelacion:        {SentenciaSegunda, Terminado},
+	SentenciaSegunda: {Cumplimiento, Terminado},
+	Cumplimiento:     {Terminado},
+	Terminado:        {Cierre},
+	Cierre:           {},
 }
 
 // IsValid reports whether the string corresponds to a known estado.
@@ -33,7 +44,6 @@ func IsValid(s string) bool {
 }
 
 // Transition validates that moving from current to target is an allowed transition.
-// Returns an error if the transition is not in the table.
 func Transition(current, target Estado) error {
 	allowed, ok := transitions[current]
 	if !ok {

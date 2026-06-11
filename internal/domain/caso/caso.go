@@ -1,7 +1,6 @@
 package caso
 
 import (
-	"errors"
 	"time"
 
 	"poly.app/api/internal/domain/estado"
@@ -35,6 +34,37 @@ const (
 	RolAdmin      Rol = "ADMIN"
 )
 
+// MotivoTermino is the reason a caso is terminated. Enum defined by the business expert.
+type MotivoTermino string
+
+const (
+	MotivoImprocedente                  MotivoTermino = "IMPROCEDENTE"
+	MotivoExtemporaneo                  MotivoTermino = "EXTEMPORANEO"
+	MotivoBusquedasNegativas            MotivoTermino = "BUSQUEDAS_NEGATIVAS"
+	MotivoDeudorFallecido               MotivoTermino = "DEUDOR_FALLECIDO"
+	MotivoDesistimientoCliente          MotivoTermino = "DESISTIMIENTO_CLIENTE"
+	MotivoDesistimientoBanco            MotivoTermino = "DESISTIMIENTO_BANCO"
+	MotivoDesistimientoDenunciaInvalida MotivoTermino = "DESISTIMIENTO_DENUNCIA_INVALIDA"
+	MotivoDesistimientoSinDenuncia      MotivoTermino = "DESISTIMIENTO_SIN_DENUNCIA"
+	MotivoSentenciaFavorableBanco       MotivoTermino = "SENTENCIA_FAVORABLE_BANCO"
+	MotivoSentenciaDesfavorableBanco    MotivoTermino = "SENTENCIA_DESFAVORABLE_BANCO"
+	MotivoAvenimiento                   MotivoTermino = "AVENIMIENTO"
+	MotivoAbandonoProcedimiento         MotivoTermino = "ABANDONO_PROCEDIMIENTO"
+)
+
+// IsValidMotivoTermino reports whether m is a known termination reason.
+func IsValidMotivoTermino(m string) bool {
+	switch MotivoTermino(m) {
+	case MotivoImprocedente, MotivoExtemporaneo, MotivoBusquedasNegativas,
+		MotivoDeudorFallecido, MotivoDesistimientoCliente, MotivoDesistimientoBanco,
+		MotivoDesistimientoDenunciaInvalida, MotivoDesistimientoSinDenuncia,
+		MotivoSentenciaFavorableBanco, MotivoSentenciaDesfavorableBanco,
+		MotivoAvenimiento, MotivoAbandonoProcedimiento:
+		return true
+	}
+	return false
+}
+
 // Caso is the central aggregate of the domain.
 type Caso struct {
 	ID             string
@@ -52,17 +82,9 @@ type Caso struct {
 	UpdatedAt      time.Time
 }
 
-// ValidateTransition checks that moving to target is allowed and that
-// business pre-conditions for the transition are met.
+// ValidateTransition checks that moving to target is allowed by the state machine.
 func (c *Caso) ValidateTransition(target estado.Estado) error {
-	if err := estado.Transition(c.Estado, target); err != nil {
-		return err
-	}
-	// JUDICIALIZACION requires a valid denuncia on record.
-	if target == estado.Judicializacion && !c.DenunciaValida {
-		return errors.New("valid denuncia required to enter JUDICIALIZACION")
-	}
-	return nil
+	return estado.Transition(c.Estado, target)
 }
 
 // RequiresTerminationReason reports whether transitioning to target requires a motivo_termino.

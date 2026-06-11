@@ -5,7 +5,7 @@ INSERT INTO casos (
     motivo_termino, created_at, updated_at
 ) VALUES (
     gen_random_uuid(), $1, $2, $3, $4,
-    $5, 'LLAMADA', $6, $7, $8,
+    $5, 'INGRESO', $6, $7, $8,
     NULL, now(), now()
 )
 RETURNING *;
@@ -75,5 +75,5 @@ WHERE c.estudio_id = $1
   AND c.banco_id = ANY($2::uuid[])
   AND p.cumplido = false
   AND p.fecha_limite <= (CURRENT_DATE + ($3 || ' days')::interval)
-  AND c.estado NOT IN ('CIERRE', 'TERMINADO')
+  AND c.estado NOT IN ('TERMINADO', 'CIERRE')
 ORDER BY p.fecha_limite ASC;
