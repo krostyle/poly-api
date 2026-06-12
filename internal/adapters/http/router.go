@@ -37,7 +37,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	// ── Use cases ────────────────────────────────────────────────────────────
 	bootstrapUC := appauth.NewBootstrapUseCase(estudiosRepo, usuariosRepo, bancosRepo)
 	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, plazosRepo, feriadosProvider, auditRepo)
-	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, auditRepo)
+	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
 	subirDocUC := appdocs.NewSubirDocumentoUseCase(blobStorage, documentosRepo)

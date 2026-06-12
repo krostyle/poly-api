@@ -83,18 +83,18 @@ type BancoRepository interface {
 // ── Caso list / detail types ─────────────────────────────────────────────────
 
 type CasoListItem struct {
-	ID             string
-	BancoID        string
-	BancoNombre    string
-	ClienteID      string
-	ClienteRUT     string
-	ClienteNombre  string
-	AbogadoID      *string
-	NumeroOT       *string
-	Estado         estado.Estado
-	FechaDJ        *time.Time
-	DenunciaValida bool
-	CreatedAt      time.Time
+	ID              string
+	BancoID         string
+	BancoNombre     string
+	ClienteID       string
+	ClienteRUT      string
+	ClienteNombre   string
+	AbogadoID       *string
+	NumeroOT        *string
+	Estado          estado.Estado
+	FechaDJ         *time.Time
+	EstadoDenuncia  caso.EstadoDenuncia
+	CreatedAt       time.Time
 }
 
 type Cliente struct {

@@ -35,17 +35,17 @@ func NewCasosHandler(
 // ── JSON response types ──────────────────────────────────────────────────────
 
 type casoListItemJSON struct {
-	ID             string  `json:"id"`
-	BancoID        string  `json:"banco_id"`
-	BancoNombre    string  `json:"banco_nombre"`
-	ClienteID      string  `json:"cliente_id"`
-	ClienteRUT     string  `json:"cliente_rut"`
-	ClienteNombre  string  `json:"cliente_nombre"`
+	ID             string `json:"id"`
+	BancoID        string `json:"banco_id"`
+	BancoNombre    string `json:"banco_nombre"`
+	ClienteID      string `json:"cliente_id"`
+	ClienteRUT     string `json:"cliente_rut"`
+	ClienteNombre  string `json:"cliente_nombre"`
 	AbogadoID      *string `json:"abogado_id"`
 	NumeroOT       *string `json:"numero_ot"`
 	Estado         string  `json:"estado"`
 	FechaDJ        *string `json:"fecha_dj"`
-	DenunciaValida bool    `json:"denuncia_valida"`
+	EstadoDenuncia string  `json:"estado_denuncia"`
 	CreatedAt      string  `json:"created_at"`
 }
 
@@ -59,7 +59,7 @@ type casoJSON struct {
 	Estado         string  `json:"estado"`
 	FechaDJ        *string `json:"fecha_dj"`
 	FechaDenuncia  *string `json:"fecha_denuncia"`
-	DenunciaValida bool    `json:"denuncia_valida"`
+	EstadoDenuncia string  `json:"estado_denuncia"`
 	MotivoTermino  *string `json:"motivo_termino"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
@@ -110,7 +110,7 @@ func toCasoListItemJSON(item *domain.CasoListItem) casoListItemJSON {
 		NumeroOT:       item.NumeroOT,
 		Estado:         string(item.Estado),
 		FechaDJ:        formatDatePtr(item.FechaDJ),
-		DenunciaValida: item.DenunciaValida,
+		EstadoDenuncia: string(item.EstadoDenuncia),
 		CreatedAt:      item.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }
@@ -141,7 +141,7 @@ func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 			Estado:         string(c.Estado),
 			FechaDJ:        formatDatePtr(c.FechaDJ),
 			FechaDenuncia:  fechaDen,
-			DenunciaValida: c.DenunciaValida,
+			EstadoDenuncia: string(c.EstadoDenuncia),
 			MotivoTermino:  c.MotivoTermino,
 			CreatedAt:      c.CreatedAt.UTC().Format(time.RFC3339),
 			UpdatedAt:      c.UpdatedAt.UTC().Format(time.RFC3339),
@@ -181,7 +181,6 @@ func (h *CasosHandler) Listar(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if q.Get("excluir_cierre") != "false" {
-		// default: excluir CIERRE; only show them when explicitly set to "false"
 		filters.ExcluirCierre = true
 	}
 
@@ -274,7 +273,7 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		AbogadoID      *string `json:"abogado_id"`
 		NumeroOT       *string `json:"numero_ot"`
-		DenunciaValida *bool   `json:"denuncia_valida"`
+		EstadoDenuncia *string `json:"estado_denuncia"`
 		FechaDenuncia  *string `json:"fecha_denuncia"`
 		FechaDJ        *string `json:"fecha_dj"`
 	}
@@ -283,12 +282,23 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Tramitadores may only update fecha fields — block privileged fields silently.
+	// Tramitadores may only update fecha fields.
 	rol := middleware.RolFromCtx(r.Context())
 	if rol == "TRAMITADOR" {
 		req.AbogadoID = nil
 		req.NumeroOT = nil
-		req.DenunciaValida = nil
+		req.EstadoDenuncia = nil
+	}
+
+	// Validate estado_denuncia if provided.
+	var estDenuncia *caso.EstadoDenuncia
+	if req.EstadoDenuncia != nil {
+		if !caso.IsValidEstadoDenuncia(*req.EstadoDenuncia) {
+			http.Error(w, `{"error":"estado_denuncia debe ser PENDIENTE, ACOGIDA o RECHAZADA"}`, http.StatusBadRequest)
+			return
+		}
+		ed := caso.EstadoDenuncia(*req.EstadoDenuncia)
+		estDenuncia = &ed
 	}
 
 	input := appcasos.UpdateCaseInput{
@@ -297,7 +307,7 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		UsuarioID:      usuarioID,
 		AbogadoID:      req.AbogadoID,
 		NumeroOT:       req.NumeroOT,
-		DenunciaValida: req.DenunciaValida,
+		EstadoDenuncia: estDenuncia,
 	}
 	if req.FechaDenuncia != nil {
 		if *req.FechaDenuncia == "" {
@@ -359,7 +369,7 @@ func (h *CasosHandler) Transicionar(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		if isBadRequest(err) {
-			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusUnprocessableEntity)
 			return
 		}
 		http.Error(w, `{"error":"Error al procesar la transición de estado"}`, http.StatusInternalServerError)
@@ -433,8 +443,10 @@ func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
 func isBadRequest(err error) bool {
 	return errors.Is(err, estado.ErrTransicionNoPermitida) ||
 		errors.Is(err, appcasos.ErrMotivoTerminoRequerido) ||
-		errors.Is(err, appcasos.ErrMotivoTerminoInvalido)
+		errors.Is(err, appcasos.ErrMotivoTerminoInvalido) ||
+		errors.Is(err, appcasos.ErrDenunciaRechazadaRequerida) ||
+		errors.Is(err, appcasos.ErrDenunciaAcogidaRequerida)
 }
 
-// Ensure old signature compiles — NewCasosHandler replaces the old zero-arg version.
+// keep import used only for interface check
 var _ = (*caso.Caso)(nil)

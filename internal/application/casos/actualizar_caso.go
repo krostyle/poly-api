@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"poly.app/api/internal/domain"
+	"poly.app/api/internal/domain/caso"
+	"poly.app/api/internal/domain/plazo"
 )
 
 type UpdateCaseInput struct {
@@ -13,7 +15,7 @@ type UpdateCaseInput struct {
 	UsuarioID          string
 	AbogadoID          *string
 	NumeroOT           *string
-	DenunciaValida     *bool
+	EstadoDenuncia     *caso.EstadoDenuncia
 	FechaDenuncia      *time.Time
 	FechaDJ            *time.Time
 	ClearFechaDenuncia bool
@@ -21,12 +23,19 @@ type UpdateCaseInput struct {
 }
 
 type UpdateCaseUseCase struct {
-	casos   domain.CasoRepository
-	auditor domain.AuditLogger
+	casos    domain.CasoRepository
+	plazos   domain.PlazoRepository
+	feriados domain.FeriadoProvider
+	auditor  domain.AuditLogger
 }
 
-func NewUpdateCaseUseCase(casos domain.CasoRepository, auditor domain.AuditLogger) *UpdateCaseUseCase {
-	return &UpdateCaseUseCase{casos: casos, auditor: auditor}
+func NewUpdateCaseUseCase(
+	casos domain.CasoRepository,
+	plazos domain.PlazoRepository,
+	feriados domain.FeriadoProvider,
+	auditor domain.AuditLogger,
+) *UpdateCaseUseCase {
+	return &UpdateCaseUseCase{casos: casos, plazos: plazos, feriados: feriados, auditor: auditor}
 }
 
 func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*domain.CasoDetalle, error) {
@@ -35,14 +44,16 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 		return nil, err
 	}
 
+	oldFechaDJ := c.FechaDJ
+
 	if in.AbogadoID != nil {
 		c.AbogadoID = in.AbogadoID
 	}
 	if in.NumeroOT != nil {
 		c.NumeroOT = in.NumeroOT
 	}
-	if in.DenunciaValida != nil {
-		c.DenunciaValida = *in.DenunciaValida
+	if in.EstadoDenuncia != nil {
+		c.EstadoDenuncia = *in.EstadoDenuncia
 	}
 	if in.ClearFechaDenuncia {
 		c.FechaDenuncia = nil
@@ -59,6 +70,11 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 		return nil, err
 	}
 
+	// Create the 30-business-day response deadline the first time FechaDJ is recorded.
+	if !in.ClearFechaDJ && in.FechaDJ != nil && oldFechaDJ == nil {
+		uc.createRespuestaDenunciaPlazos(ctx, c.ID, *in.FechaDJ)
+	}
+
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
 		EstudioID: in.EstudioID,
@@ -69,4 +85,16 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	})
 
 	return uc.casos.GetDetalle(ctx, in.EstudioID, in.CasoID)
+}
+
+func (uc *UpdateCaseUseCase) createRespuestaDenunciaPlazos(ctx context.Context, casoID string, fechaDJ time.Time) {
+	horizon := fechaDJ.AddDate(0, 3, 0)
+	holidays, _ := uc.feriados.GetHolidays(ctx, fechaDJ, horizon)
+	_ = uc.plazos.CreateBatch(ctx, []domain.NewPlazoInput{{
+		CasoID:      casoID,
+		Tipo:        plazo.TipoRespuestaDenuncia,
+		FechaInicio: fechaDJ,
+		DiasHabiles: 30,
+		FechaLimite: plazo.CalculateDeadline(fechaDJ, 30, holidays),
+	}})
 }

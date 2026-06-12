@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	ErrMotivoTerminoRequerido = errors.New("se requiere seleccionar un motivo de término")
-	ErrMotivoTerminoInvalido  = errors.New("el motivo de término seleccionado no es válido")
+	ErrMotivoTerminoRequerido    = errors.New("se requiere seleccionar un motivo de término")
+	ErrMotivoTerminoInvalido     = errors.New("el motivo de término seleccionado no es válido")
+	ErrDenunciaRechazadaRequerida = errors.New("el banco debe haber rechazado la denuncia para ingresar a Pago Normativo")
+	ErrDenunciaAcogidaRequerida   = errors.New("el banco debe haber acogido la denuncia para pasar directamente a la etapa Judicial")
 )
 
 type TransitionStateInput struct {
@@ -23,7 +25,6 @@ type TransitionStateInput struct {
 	NewState          estado.Estado
 	TerminationReason *string
 	// Forzar bypasses the state machine for administrative corrections.
-	// The audit entry records forzado:true so it is traceable.
 	Forzar bool
 }
 
@@ -50,6 +51,9 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	}
 	if !in.Forzar {
 		if err := c.ValidateTransition(in.NewState); err != nil {
+			return err
+		}
+		if err := validateDenunciaGuard(c, in.NewState); err != nil {
 			return err
 		}
 	}
@@ -87,6 +91,26 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	return nil
 }
 
+// validateDenunciaGuard enforces the business rule that the bank's response to the
+// denuncia determines which path is taken from Prejudicial:
+//   - Rechazada → PagoNormativo (bank rejects, normative payment phase applies)
+//   - Acogida   → Judicial directly (bank accepts, normative payment is skipped)
+func validateDenunciaGuard(c *caso.Caso, target estado.Estado) error {
+	switch target {
+	case estado.PagoNormativo:
+		if c.EstadoDenuncia != caso.DenunciaRechazada {
+			return ErrDenunciaRechazadaRequerida
+		}
+	case estado.Judicial:
+		// Guard only applies when coming from Prejudicial (skipping PagoNormativo).
+		// From PagoNormativo → Judicial no additional check is needed.
+		if c.Estado == estado.Prejudicial && c.EstadoDenuncia != caso.DenunciaAcogida {
+			return ErrDenunciaAcogidaRequerida
+		}
+	}
+	return nil
+}
+
 func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, casoID string, newState estado.Estado) {
 	now := time.Now()
 	horizon := now.AddDate(0, 3, 0)
@@ -100,16 +124,13 @@ func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, ca
 	var specs []spec
 	switch newState {
 	case estado.Prejudicial:
-		// Plazo para que el tribunal resuelva la medida precautoria (13 días hábiles)
 		specs = []spec{{plazo.TipoPrecautelar, 13}}
 	case estado.PagoNormativo:
-		// Tribunal acoge MP: 10 días hábiles para presentar demanda
 		specs = []spec{
 			{plazo.TipoDemanda, 10},
 			{plazo.TipoRestitucionRechazo, 3},
 		}
 	case estado.Judicial:
-		// Demanda presentada: plazo adicional de seguimiento interno
 		specs = []spec{{plazo.TipoDemanda, 10}}
 	default:
 		return
