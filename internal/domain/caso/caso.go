@@ -34,7 +34,7 @@ const (
 	RolAdmin      Rol = "ADMIN"
 )
 
-// MotivoTermino is the reason a caso is terminated. Enum defined by the business expert.
+// MotivoTermino is the reason a caso is terminated.
 type MotivoTermino string
 
 const (
@@ -65,21 +65,41 @@ func IsValidMotivoTermino(m string) bool {
 	return false
 }
 
+// EstadoDenuncia represents the bank's response to a fraud complaint (denuncia Ley 20.009).
+// PENDIENTE: awaiting response; ACOGIDA: bank accepted → skips PagoNormativo;
+// RECHAZADA: bank rejected → must go through PagoNormativo.
+type EstadoDenuncia string
+
+const (
+	DenunciaPendiente EstadoDenuncia = "PENDIENTE"
+	DenunciaAcogida   EstadoDenuncia = "ACOGIDA"
+	DenunciaRechazada EstadoDenuncia = "RECHAZADA"
+)
+
+// IsValidEstadoDenuncia reports whether s is a known denuncia state.
+func IsValidEstadoDenuncia(s string) bool {
+	switch EstadoDenuncia(s) {
+	case DenunciaPendiente, DenunciaAcogida, DenunciaRechazada:
+		return true
+	}
+	return false
+}
+
 // Caso is the central aggregate of the domain.
 type Caso struct {
-	ID             string
-	EstudioID      string
-	BancoID        string
-	ClienteID      string
-	AbogadoID      *string
-	NumeroOT       *string
-	Estado         estado.Estado
-	FechaDJ        *time.Time
-	FechaDenuncia  *time.Time
-	DenunciaValida bool
-	MotivoTermino  *string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              string
+	EstudioID       string
+	BancoID         string
+	ClienteID       string
+	AbogadoID       *string
+	NumeroOT        *string
+	Estado          estado.Estado
+	FechaDJ         *time.Time
+	FechaDenuncia   *time.Time
+	EstadoDenuncia  EstadoDenuncia
+	MotivoTermino   *string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // ValidateTransition checks that moving to target is allowed by the state machine.

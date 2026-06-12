@@ -12,6 +12,9 @@ const (
 	TipoPrecautelar        TipoPlazo = "PRECAUTELAR"
 	TipoDemanda            TipoPlazo = "DEMANDA"
 	TipoRestitucionRechazo TipoPlazo = "RESTITUCION_RECHAZO"
+	// TipoRespuestaDenuncia tracks the 30 business-day window for the bank to respond
+	// to a fraud complaint (denuncia Ley 20.009), counted from the DJ date.
+	TipoRespuestaDenuncia  TipoPlazo = "RESPUESTA_DENUNCIA"
 )
 
 // Semaforo classifies the urgency level of a plazo.

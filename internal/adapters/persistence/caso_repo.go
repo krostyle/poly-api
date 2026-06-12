@@ -22,11 +22,11 @@ func NewCasoRepo(pool *pgxpool.Pool) *CasoRepo {
 func (r *CasoRepo) Create(ctx context.Context, c *caso.Caso) error {
 	const q = `INSERT INTO casos
 		(id, estudio_id, banco_id, cliente_id, abogado_id, numero_ot, estado,
-		 fecha_dj, fecha_denuncia, denuncia_valida, motivo_termino, created_at, updated_at)
+		 fecha_dj, fecha_denuncia, estado_denuncia, motivo_termino, created_at, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`
 	_, err := r.pool.Exec(ctx, q,
 		c.ID, c.EstudioID, c.BancoID, c.ClienteID, c.AbogadoID, c.NumeroOT,
-		string(c.Estado), c.FechaDJ, c.FechaDenuncia, c.DenunciaValida,
+		string(c.Estado), c.FechaDJ, c.FechaDenuncia, string(c.EstadoDenuncia),
 		c.MotivoTermino, c.CreatedAt, c.UpdatedAt,
 	)
 	return err
@@ -34,7 +34,7 @@ func (r *CasoRepo) Create(ctx context.Context, c *caso.Caso) error {
 
 func (r *CasoRepo) GetByID(ctx context.Context, estudioID, id string) (*caso.Caso, error) {
 	const q = `SELECT id, estudio_id, banco_id, cliente_id, abogado_id, numero_ot, estado,
-		fecha_dj, fecha_denuncia, denuncia_valida, motivo_termino, created_at, updated_at
+		fecha_dj, fecha_denuncia, estado_denuncia, motivo_termino, created_at, updated_at
 		FROM casos WHERE id = $1 AND estudio_id = $2`
 	row := r.pool.QueryRow(ctx, q, id, estudioID)
 	return scanCaso(row)
@@ -42,9 +42,9 @@ func (r *CasoRepo) GetByID(ctx context.Context, estudioID, id string) (*caso.Cas
 
 func (r *CasoRepo) Update(ctx context.Context, c *caso.Caso) error {
 	const q = `UPDATE casos SET abogado_id=$2, numero_ot=$3, fecha_denuncia=$4,
-		denuncia_valida=$5, motivo_termino=$6, fecha_dj=$7, updated_at=now() WHERE id=$1`
+		estado_denuncia=$5, motivo_termino=$6, fecha_dj=$7, updated_at=now() WHERE id=$1`
 	_, err := r.pool.Exec(ctx, q,
-		c.ID, c.AbogadoID, c.NumeroOT, c.FechaDenuncia, c.DenunciaValida, c.MotivoTermino, c.FechaDJ,
+		c.ID, c.AbogadoID, c.NumeroOT, c.FechaDenuncia, string(c.EstadoDenuncia), c.MotivoTermino, c.FechaDJ,
 	)
 	return err
 }
@@ -58,7 +58,7 @@ func (r *CasoRepo) List(ctx context.Context, estudioID string, filters domain.Ca
 		limit = 50
 	}
 	const q = `SELECT id, estudio_id, banco_id, cliente_id, abogado_id, numero_ot, estado,
-		fecha_dj, fecha_denuncia, denuncia_valida, motivo_termino, created_at, updated_at
+		fecha_dj, fecha_denuncia, estado_denuncia, motivo_termino, created_at, updated_at
 		FROM casos WHERE estudio_id = $1 AND banco_id = ANY($2::uuid[])
 		ORDER BY created_at DESC LIMIT $3 OFFSET $4`
 	rows, err := r.pool.Query(ctx, q, estudioID, filters.BancoIDs, limit, filters.Offset)
@@ -86,7 +86,6 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 		limit = 50
 	}
 
-	// Resolve optional banco sub-filter: intersect with allowed scope.
 	bancoScope := filters.BancoIDs
 	if filters.BancoIDFilter != "" {
 		bancoScope = []string{filters.BancoIDFilter}
@@ -117,7 +116,7 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 	total := int(totalRaw)
 
 	q := `SELECT c.id, c.banco_id, b.nombre, c.cliente_id, cl.rut, cl.nombre,
-		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.denuncia_valida, c.created_at
+		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.estado_denuncia, c.created_at
 		FROM casos c
 		JOIN bancos   b  ON b.id  = c.banco_id
 		JOIN clientes cl ON cl.id = c.cliente_id
@@ -137,18 +136,19 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 	var items []*domain.CasoListItem
 	for rows.Next() {
 		var item domain.CasoListItem
-		var est string
+		var est, estDenuncia string
 		var fechaDJ *time.Time
 		if err := rows.Scan(
 			&item.ID, &item.BancoID, &item.BancoNombre,
 			&item.ClienteID, &item.ClienteRUT, &item.ClienteNombre,
 			&item.AbogadoID, &item.NumeroOT, &est,
-			&fechaDJ, &item.DenunciaValida, &item.CreatedAt,
+			&fechaDJ, &estDenuncia, &item.CreatedAt,
 		); err != nil {
 			return nil, 0, err
 		}
 		item.Estado = estado.Estado(est)
 		item.FechaDJ = fechaDJ
+		item.EstadoDenuncia = caso.EstadoDenuncia(estDenuncia)
 		items = append(items, &item)
 	}
 	return items, total, rows.Err()
@@ -230,12 +230,12 @@ type casoScanner interface {
 
 func scanCaso(row casoScanner) (*caso.Caso, error) {
 	var c caso.Caso
-	var est string
+	var est, estDenuncia string
 	var fechaDJ *time.Time
 	var createdAt, updatedAt time.Time
 	err := row.Scan(
 		&c.ID, &c.EstudioID, &c.BancoID, &c.ClienteID, &c.AbogadoID, &c.NumeroOT,
-		&est, &fechaDJ, &c.FechaDenuncia, &c.DenunciaValida, &c.MotivoTermino,
+		&est, &fechaDJ, &c.FechaDenuncia, &estDenuncia, &c.MotivoTermino,
 		&createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -243,6 +243,7 @@ func scanCaso(row casoScanner) (*caso.Caso, error) {
 	}
 	c.Estado = estado.Estado(est)
 	c.FechaDJ = fechaDJ
+	c.EstadoDenuncia = caso.EstadoDenuncia(estDenuncia)
 	c.CreatedAt = createdAt
 	c.UpdatedAt = updatedAt
 	return &c, nil

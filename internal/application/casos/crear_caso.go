@@ -96,6 +96,7 @@ func (uc *CreateCaseUseCase) createInitialPlazos(ctx context.Context, casoID str
 		{plazo.TipoAnalisisInterno, 5},
 		{plazo.TipoRestitucion, 13},
 		{plazo.TipoAsignacion, 7},
+		{plazo.TipoRespuestaDenuncia, 30},
 	}
 
 	var inputs []domain.NewPlazoInput
