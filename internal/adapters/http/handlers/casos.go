@@ -299,20 +299,28 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		DenunciaValida: req.DenunciaValida,
 	}
 	if req.FechaDenuncia != nil {
-		t, err := time.Parse("2006-01-02", *req.FechaDenuncia)
-		if err != nil {
-			http.Error(w, `{"error":"fecha_denuncia must be YYYY-MM-DD"}`, http.StatusBadRequest)
-			return
+		if *req.FechaDenuncia == "" {
+			input.ClearFechaDenuncia = true
+		} else {
+			t, err := time.Parse("2006-01-02", *req.FechaDenuncia)
+			if err != nil {
+				http.Error(w, `{"error":"fecha_denuncia must be YYYY-MM-DD"}`, http.StatusBadRequest)
+				return
+			}
+			input.FechaDenuncia = &t
 		}
-		input.FechaDenuncia = &t
 	}
-	if req.FechaDJ != nil && *req.FechaDJ != "" {
-		t, err := time.Parse("2006-01-02", *req.FechaDJ)
-		if err != nil {
-			http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
-			return
+	if req.FechaDJ != nil {
+		if *req.FechaDJ == "" {
+			input.ClearFechaDJ = true
+		} else {
+			t, err := time.Parse("2006-01-02", *req.FechaDJ)
+			if err != nil {
+				http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
+				return
+			}
+			input.FechaDJ = &t
 		}
-		input.FechaDJ = &t
 	}
 
 	detalle, err := h.actualizar.Execute(r.Context(), input)

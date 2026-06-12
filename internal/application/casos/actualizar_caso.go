@@ -8,14 +8,16 @@ import (
 )
 
 type UpdateCaseInput struct {
-	EstudioID      string
-	CasoID         string
-	UsuarioID      string
-	AbogadoID      *string
-	NumeroOT       *string
-	DenunciaValida *bool
-	FechaDenuncia  *time.Time
-	FechaDJ        *time.Time
+	EstudioID          string
+	CasoID             string
+	UsuarioID          string
+	AbogadoID          *string
+	NumeroOT           *string
+	DenunciaValida     *bool
+	FechaDenuncia      *time.Time
+	FechaDJ            *time.Time
+	ClearFechaDenuncia bool
+	ClearFechaDJ       bool
 }
 
 type UpdateCaseUseCase struct {
@@ -42,10 +44,14 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	if in.DenunciaValida != nil {
 		c.DenunciaValida = *in.DenunciaValida
 	}
-	if in.FechaDenuncia != nil {
+	if in.ClearFechaDenuncia {
+		c.FechaDenuncia = nil
+	} else if in.FechaDenuncia != nil {
 		c.FechaDenuncia = in.FechaDenuncia
 	}
-	if in.FechaDJ != nil {
+	if in.ClearFechaDJ {
+		c.FechaDJ = nil
+	} else if in.FechaDJ != nil {
 		c.FechaDJ = in.FechaDJ
 	}
 
