@@ -39,7 +39,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, plazosRepo, feriadosProvider, auditRepo)
 	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
-	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, auditRepo)
+	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, plazosRepo, feriadosProvider, auditRepo)
 	subirDocUC := appdocs.NewSubirDocumentoUseCase(blobStorage, documentosRepo)
 	dashboardUC := appdash.NewDashboardUseCase(pool)
 

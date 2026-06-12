@@ -73,6 +73,13 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 
 	uc.createTransitionPlazos(ctx, in.CasoID, in.NewState)
 
+	// Cuando el caso entra a JUDICIAL, el proceso administrativo de restitución
+	// de Ley 20.009 queda superado por la vía judicial. Marcamos el plazo como
+	// cumplido para que no genere alertas innecesarias.
+	if in.NewState == estado.Judicial {
+		uc.marcarRestitucionCumplida(ctx, in.CasoID)
+	}
+
 	uid := in.UsuarioID
 	detalle := map[string]any{
 		"anterior": string(previousState),
@@ -109,6 +116,20 @@ func validateDenunciaGuard(c *caso.Caso, target estado.Estado) error {
 		}
 	}
 	return nil
+}
+
+func (uc *TransitionStateUseCase) marcarRestitucionCumplida(ctx context.Context, casoID string) {
+	plazos, err := uc.plazos.ListByCase(ctx, casoID)
+	if err != nil {
+		return
+	}
+	now := time.Now()
+	for _, p := range plazos {
+		if p.Tipo == plazo.TipoRestitucion && !p.Completed {
+			_ = uc.plazos.MarkCompleted(ctx, p.ID, now)
+			return
+		}
+	}
 }
 
 func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, casoID string, newState estado.Estado) {

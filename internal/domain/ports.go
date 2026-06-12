@@ -190,6 +190,7 @@ type PlazoRepository interface {
 	ListByCase(ctx context.Context, casoID string) ([]StoredPlazo, error)
 	ListGlobal(ctx context.Context, estudioID string, bancoIDs []string, tipoFilter string) ([]StoredPlazoGlobal, error)
 	MarkCompleted(ctx context.Context, plazoID string, date time.Time) error
+	UpdateDiasHabiles(ctx context.Context, plazoID string, diasHabiles int, fechaLimite time.Time) error
 }
 
 type NewPlazoInput struct {

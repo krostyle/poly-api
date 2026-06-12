@@ -105,3 +105,11 @@ func (r *PlazoRepo) MarkCompleted(ctx context.Context, plazoID string, date time
 	)
 	return err
 }
+
+func (r *PlazoRepo) UpdateDiasHabiles(ctx context.Context, plazoID string, diasHabiles int, fechaLimite time.Time) error {
+	_, err := r.pool.Exec(ctx,
+		`UPDATE plazos SET dias_habiles = $2, fecha_limite = $3 WHERE id = $1 AND cumplido = false`,
+		plazoID, diasHabiles, fechaLimite,
+	)
+	return err
+}
