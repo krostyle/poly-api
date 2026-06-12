@@ -222,6 +222,21 @@ type StoredPlazoGlobal struct {
 	Estado        string
 }
 
+// ── Configuración de plazos ──────────────────────────────────────────────────
+
+type ConfiguracionPlazo struct {
+	ID          string
+	EstudioID   string
+	TipoPlazo   plazo.TipoPlazo
+	DiasHabiles int
+}
+
+// ConfiguracionPlazoRepository persists per-estudio deadline configurations.
+type ConfiguracionPlazoRepository interface {
+	GetByEstudio(ctx context.Context, estudioID string) ([]ConfiguracionPlazo, error)
+	Upsert(ctx context.Context, estudioID string, tipoPlazo plazo.TipoPlazo, diasHabiles int) error
+}
+
 // ── Tribunal types ───────────────────────────────────────────────────────────
 
 type Tribunal struct {

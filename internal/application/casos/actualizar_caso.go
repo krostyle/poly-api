@@ -21,6 +21,9 @@ type UpdateCaseInput struct {
 	NumeroRol          *string
 	Tribunal           *string
 	Region             *string
+	ResultadoJPL       *caso.ResultadoJPL
+	FechaResolucionJPL *time.Time
+	ClearResultadoJPL  bool
 }
 
 type UpdateCaseUseCase struct {
@@ -71,6 +74,17 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	if in.Region != nil {
 		c.Region = in.Region
 	}
+	if in.ClearResultadoJPL {
+		c.ResultadoJPL = nil
+		c.FechaResolucionJPL = nil
+	} else {
+		if in.ResultadoJPL != nil {
+			c.ResultadoJPL = in.ResultadoJPL
+		}
+		if in.FechaResolucionJPL != nil {
+			c.FechaResolucionJPL = in.FechaResolucionJPL
+		}
+	}
 
 	if err := uc.casos.Update(ctx, c); err != nil {
 		return nil, err
@@ -106,6 +120,17 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	}
 	if in.Region != nil {
 		cambios["region"] = *in.Region
+	}
+	if in.ClearResultadoJPL {
+		cambios["resultado_jpl"] = nil
+		cambios["fecha_resolucion_jpl"] = nil
+	} else {
+		if in.ResultadoJPL != nil {
+			cambios["resultado_jpl"] = string(*in.ResultadoJPL)
+		}
+		if in.FechaResolucionJPL != nil {
+			cambios["fecha_resolucion_jpl"] = in.FechaResolucionJPL.Format("2006-01-02")
+		}
 	}
 
 	uid := in.UsuarioID

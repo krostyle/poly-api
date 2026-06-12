@@ -33,11 +33,12 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	feriadosProvider := feriados.NewDBFeriadoProvider(pool)
 	documentosRepo := persistence.NewDocumentoRepo(pool)
 	tribunalesRepo := persistence.NewTribunalRepo(pool)
+	configuracionRepo := persistence.NewConfiguracionPlazoRepo(pool)
 	blobStorage := storage.NewVercelBlobStorage()
 
 	// ── Use cases ────────────────────────────────────────────────────────────
 	bootstrapUC := appauth.NewBootstrapUseCase(estudiosRepo, usuariosRepo, bancosRepo)
-	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, plazosRepo, feriadosProvider, auditRepo)
+	createCaseUC := appcasos.NewCreateCaseUseCase(casosRepo, clientesRepo, plazosRepo, feriadosProvider, auditRepo, configuracionRepo)
 	updateCaseUC := appcasos.NewUpdateCaseUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	transicionUC := appcasos.NewTransitionStateUseCase(casosRepo, plazosRepo, feriadosProvider, auditRepo)
 	agregarOpUC := appops.NewAgregarOperacionUseCase(casosRepo, operacionesRepo, plazosRepo, feriadosProvider, auditRepo)
@@ -55,6 +56,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	dashboardH := handlers.NewDashboardHandler(dashboardUC)
 	usuariosH := handlers.NewUsuariosHandler(usuariosRepo)
 	tribunalesH := handlers.NewTribunalesHandler(tribunalesRepo)
+	configuracionH := handlers.NewConfiguracionHandler(configuracionRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -113,6 +115,9 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 
 		r.Get("/v1/tribunales", tribunalesH.Listar)
 		r.With(middleware.RequireRol("ADMIN")).Post("/v1/tribunales", tribunalesH.Crear)
+
+		r.Get("/v1/configuracion/plazos", configuracionH.Listar)
+		r.With(middleware.RequireRol("ADMIN")).Put("/v1/configuracion/plazos/{tipo}", configuracionH.Actualizar)
 
 		r.Route("/v1/casos", func(r chi.Router) {
 			r.Get("/", casosH.Listar)

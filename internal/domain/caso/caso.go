@@ -65,6 +65,25 @@ func IsValidMotivoTermino(m string) bool {
 	return false
 }
 
+// ResultadoJPL represents the JPL's ruling on the bank's precautionary suspension request.
+type ResultadoJPL string
+
+const (
+	JPLAceptaSuspension  ResultadoJPL = "ACEPTA_SUSPENSION"
+	JPLRechazaSuspension ResultadoJPL = "RECHAZA_SUSPENSION"
+	JPLFalloFavorable    ResultadoJPL = "FALLO_FAVORABLE"
+	JPLFalloDesfavorable ResultadoJPL = "FALLO_DESFAVORABLE"
+)
+
+// IsValidResultadoJPL reports whether s is a known JPL result.
+func IsValidResultadoJPL(s string) bool {
+	switch ResultadoJPL(s) {
+	case JPLAceptaSuspension, JPLRechazaSuspension, JPLFalloFavorable, JPLFalloDesfavorable:
+		return true
+	}
+	return false
+}
+
 // EstadoDenuncia represents the bank's response to a fraud complaint (denuncia Ley 20.009).
 // PENDIENTE: awaiting response; ACOGIDA: bank accepted → skips PagoNormativo;
 // RECHAZADA: bank rejected → must go through PagoNormativo.
@@ -97,12 +116,14 @@ type Caso struct {
 	FechaDJ         *time.Time
 	FechaDenuncia   *time.Time
 	EstadoDenuncia  EstadoDenuncia
-	MotivoTermino   *string
-	NumeroRol       *string
-	Tribunal        *string
-	Region          *string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	MotivoTermino     *string
+	NumeroRol         *string
+	Tribunal          *string
+	Region            *string
+	ResultadoJPL      *ResultadoJPL
+	FechaResolucionJPL *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 // ValidateTransition checks that moving to target is allowed by the state machine.

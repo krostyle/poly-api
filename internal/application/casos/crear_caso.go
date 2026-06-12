@@ -22,11 +22,12 @@ type CreateCaseInput struct {
 }
 
 type CreateCaseUseCase struct {
-	casos    domain.CasoRepository
-	clientes domain.ClienteRepository
-	plazos   domain.PlazoRepository
-	feriados domain.FeriadoProvider
-	auditor  domain.AuditLogger
+	casos         domain.CasoRepository
+	clientes      domain.ClienteRepository
+	plazos        domain.PlazoRepository
+	feriados      domain.FeriadoProvider
+	auditor       domain.AuditLogger
+	configPlazos  domain.ConfiguracionPlazoRepository
 }
 
 func NewCreateCaseUseCase(
@@ -35,8 +36,19 @@ func NewCreateCaseUseCase(
 	plazos domain.PlazoRepository,
 	feriados domain.FeriadoProvider,
 	auditor domain.AuditLogger,
+	configPlazos domain.ConfiguracionPlazoRepository,
 ) *CreateCaseUseCase {
-	return &CreateCaseUseCase{casos: casos, clientes: clientes, plazos: plazos, feriados: feriados, auditor: auditor}
+	return &CreateCaseUseCase{casos: casos, clientes: clientes, plazos: plazos, feriados: feriados, auditor: auditor, configPlazos: configPlazos}
+}
+
+// plazoConfigDias returns the configured días for a plazo type, falling back to defaultDias.
+func plazoConfigDias(configs []domain.ConfiguracionPlazo, tipo plazo.TipoPlazo, defaultDias int) int {
+	for _, c := range configs {
+		if c.TipoPlazo == tipo {
+			return c.DiasHabiles
+		}
+	}
+	return defaultDias
 }
 
 func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*domain.CasoDetalle, error) {
@@ -66,7 +78,7 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		return nil, err
 	}
 
-	uc.createInitialPlazos(ctx, c.ID, in.FechaDJ)
+	uc.createInitialPlazos(ctx, in.EstudioID, c.ID, in.FechaDJ)
 
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
@@ -84,17 +96,19 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 	}, nil
 }
 
-func (uc *CreateCaseUseCase) createInitialPlazos(ctx context.Context, casoID string, fechaDJ time.Time) {
+func (uc *CreateCaseUseCase) createInitialPlazos(ctx context.Context, estudioID, casoID string, fechaDJ time.Time) {
 	horizon := fechaDJ.AddDate(0, 3, 0)
 	holidays, _ := uc.feriados.GetHolidays(ctx, fechaDJ, horizon)
+
+	configs, _ := uc.configPlazos.GetByEstudio(ctx, estudioID)
 
 	specs := []struct {
 		tipo plazo.TipoPlazo
 		dias int
 	}{
-		{plazo.TipoAnalisisInterno, 5},
+		{plazo.TipoAnalisisInterno, plazoConfigDias(configs, plazo.TipoAnalisisInterno, 5)},
 		{plazo.TipoRestitucion, 10}, // Ley 20.009 Art. 5 (mod. Ley 21.673/2024): 10 días hábiles; 15 si cajero; +7 si >35 UF
-		{plazo.TipoAsignacion, 7},
+		{plazo.TipoAsignacion, plazoConfigDias(configs, plazo.TipoAsignacion, 7)},
 		{plazo.TipoRespuestaDenuncia, 30},
 	}
 

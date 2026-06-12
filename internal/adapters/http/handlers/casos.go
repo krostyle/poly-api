@@ -52,22 +52,24 @@ type casoListItemJSON struct {
 }
 
 type casoJSON struct {
-	ID             string  `json:"id"`
-	EstudioID      string  `json:"estudio_id"`
-	BancoID        string  `json:"banco_id"`
-	ClienteID      string  `json:"cliente_id"`
-	AbogadoID      *string `json:"abogado_id"`
-	NumeroOT       *string `json:"numero_ot"`
-	Estado         string  `json:"estado"`
-	FechaDJ        *string `json:"fecha_dj"`
-	FechaDenuncia  *string `json:"fecha_denuncia"`
-	EstadoDenuncia string  `json:"estado_denuncia"`
-	MotivoTermino  *string `json:"motivo_termino"`
-	NumeroRol      *string `json:"numero_rol"`
-	Tribunal       *string `json:"tribunal"`
-	Region         *string `json:"region"`
-	CreatedAt      string  `json:"created_at"`
-	UpdatedAt      string  `json:"updated_at"`
+	ID                 string  `json:"id"`
+	EstudioID          string  `json:"estudio_id"`
+	BancoID            string  `json:"banco_id"`
+	ClienteID          string  `json:"cliente_id"`
+	AbogadoID          *string `json:"abogado_id"`
+	NumeroOT           *string `json:"numero_ot"`
+	Estado             string  `json:"estado"`
+	FechaDJ            *string `json:"fecha_dj"`
+	FechaDenuncia      *string `json:"fecha_denuncia"`
+	EstadoDenuncia     string  `json:"estado_denuncia"`
+	MotivoTermino      *string `json:"motivo_termino"`
+	NumeroRol          *string `json:"numero_rol"`
+	Tribunal           *string `json:"tribunal"`
+	Region             *string `json:"region"`
+	ResultadoJPL       *string `json:"resultado_jpl"`
+	FechaResolucionJPL *string `json:"fecha_resolucion_jpl"`
+	CreatedAt          string  `json:"created_at"`
+	UpdatedAt          string  `json:"updated_at"`
 }
 
 type clienteJSON struct {
@@ -136,24 +138,31 @@ func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 			FechaOp:   op.FechaOp.Format("2006-01-02"),
 		})
 	}
+	var resultadoJPL *string
+	if c.ResultadoJPL != nil {
+		s := string(*c.ResultadoJPL)
+		resultadoJPL = &s
+	}
 	return casoDetalleJSON{
 		Caso: casoJSON{
-			ID:             c.ID,
-			EstudioID:      c.EstudioID,
-			BancoID:        c.BancoID,
-			ClienteID:      c.ClienteID,
-			AbogadoID:      c.AbogadoID,
-			NumeroOT:       c.NumeroOT,
-			Estado:         string(c.Estado),
-			FechaDJ:        formatDatePtr(c.FechaDJ),
-			FechaDenuncia:  fechaDen,
-			EstadoDenuncia: string(c.EstadoDenuncia),
-			MotivoTermino:  c.MotivoTermino,
-			NumeroRol:      c.NumeroRol,
-			Tribunal:       c.Tribunal,
-			Region:         c.Region,
-			CreatedAt:      c.CreatedAt.UTC().Format(time.RFC3339),
-			UpdatedAt:      c.UpdatedAt.UTC().Format(time.RFC3339),
+			ID:                 c.ID,
+			EstudioID:          c.EstudioID,
+			BancoID:            c.BancoID,
+			ClienteID:          c.ClienteID,
+			AbogadoID:          c.AbogadoID,
+			NumeroOT:           c.NumeroOT,
+			Estado:             string(c.Estado),
+			FechaDJ:            formatDatePtr(c.FechaDJ),
+			FechaDenuncia:      fechaDen,
+			EstadoDenuncia:     string(c.EstadoDenuncia),
+			MotivoTermino:      c.MotivoTermino,
+			NumeroRol:          c.NumeroRol,
+			Tribunal:           c.Tribunal,
+			Region:             c.Region,
+			ResultadoJPL:       resultadoJPL,
+			FechaResolucionJPL: formatDatePtr(c.FechaResolucionJPL),
+			CreatedAt:          c.CreatedAt.UTC().Format(time.RFC3339),
+			UpdatedAt:          c.UpdatedAt.UTC().Format(time.RFC3339),
 		},
 		Cliente: clienteJSON{
 			ID:       d.Cliente.ID,
@@ -284,14 +293,16 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var req struct {
-		AbogadoID      *string `json:"abogado_id"`
-		NumeroOT       *string `json:"numero_ot"`
-		EstadoDenuncia *string `json:"estado_denuncia"`
-		FechaDenuncia  *string `json:"fecha_denuncia"`
-		FechaDJ        *string `json:"fecha_dj"`
-		NumeroRol      *string `json:"numero_rol"`
-		Tribunal       *string `json:"tribunal"`
-		Region         *string `json:"region"`
+		AbogadoID          *string `json:"abogado_id"`
+		NumeroOT           *string `json:"numero_ot"`
+		EstadoDenuncia     *string `json:"estado_denuncia"`
+		FechaDenuncia      *string `json:"fecha_denuncia"`
+		FechaDJ            *string `json:"fecha_dj"`
+		NumeroRol          *string `json:"numero_rol"`
+		Tribunal           *string `json:"tribunal"`
+		Region             *string `json:"region"`
+		ResultadoJPL       *string `json:"resultado_jpl"`
+		FechaResolucionJPL *string `json:"fecha_resolucion_jpl"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -307,6 +318,8 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		req.NumeroRol = nil
 		req.Tribunal = nil
 		req.Region = nil
+		req.ResultadoJPL = nil
+		req.FechaResolucionJPL = nil
 	}
 
 	// Validate estado_denuncia if provided.
@@ -342,6 +355,25 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 			}
 			input.FechaDenuncia = &t
 		}
+	}
+	if req.ResultadoJPL != nil {
+		if *req.ResultadoJPL == "" {
+			input.ClearResultadoJPL = true
+		} else if !caso.IsValidResultadoJPL(*req.ResultadoJPL) {
+			http.Error(w, `{"error":"resultado_jpl inválido"}`, http.StatusBadRequest)
+			return
+		} else {
+			rj := caso.ResultadoJPL(*req.ResultadoJPL)
+			input.ResultadoJPL = &rj
+		}
+	}
+	if req.FechaResolucionJPL != nil && *req.FechaResolucionJPL != "" {
+		t, err := time.Parse("2006-01-02", *req.FechaResolucionJPL)
+		if err != nil {
+			http.Error(w, `{"error":"fecha_resolucion_jpl debe tener formato YYYY-MM-DD"}`, http.StatusBadRequest)
+			return
+		}
+		input.FechaResolucionJPL = &t
 	}
 	if req.FechaDJ != nil && *req.FechaDJ != "" {
 		t, err := time.Parse("2006-01-02", *req.FechaDJ)

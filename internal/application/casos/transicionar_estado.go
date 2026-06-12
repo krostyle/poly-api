@@ -154,7 +154,10 @@ func (uc *TransitionStateUseCase) createTransitionPlazos(ctx context.Context, ca
 	var specs []spec
 	switch newState {
 	case estado.Prejudicial:
-		specs = []spec{{plazo.TipoPrecautelar, 13}}
+		specs = []spec{
+			{plazo.TipoPrecautelar, 13},
+			{plazo.TipoResolucionJPL, 3},
+		}
 	case estado.PagoNormativo:
 		specs = []spec{
 			{plazo.TipoDemanda, 10},
