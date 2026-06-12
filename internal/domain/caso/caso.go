@@ -98,6 +98,9 @@ type Caso struct {
 	FechaDenuncia   *time.Time
 	EstadoDenuncia  EstadoDenuncia
 	MotivoTermino   *string
+	NumeroRol       *string
+	Tribunal        *string
+	Region          *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

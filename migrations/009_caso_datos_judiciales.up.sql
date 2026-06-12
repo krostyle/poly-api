@@ -1,0 +1,4 @@
+ALTER TABLE casos
+  ADD COLUMN numero_rol VARCHAR(100),
+  ADD COLUMN tribunal   VARCHAR(200),
+  ADD COLUMN region     VARCHAR(100);

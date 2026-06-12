@@ -1,0 +1,4 @@
+ALTER TABLE casos
+  DROP COLUMN IF EXISTS numero_rol,
+  DROP COLUMN IF EXISTS tribunal,
+  DROP COLUMN IF EXISTS region;

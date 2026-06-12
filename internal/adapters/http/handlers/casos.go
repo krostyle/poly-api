@@ -62,6 +62,9 @@ type casoJSON struct {
 	FechaDenuncia  *string `json:"fecha_denuncia"`
 	EstadoDenuncia string  `json:"estado_denuncia"`
 	MotivoTermino  *string `json:"motivo_termino"`
+	NumeroRol      *string `json:"numero_rol"`
+	Tribunal       *string `json:"tribunal"`
+	Region         *string `json:"region"`
 	CreatedAt      string  `json:"created_at"`
 	UpdatedAt      string  `json:"updated_at"`
 }
@@ -144,6 +147,9 @@ func toCasoDetalleJSON(d *domain.CasoDetalle) casoDetalleJSON {
 			FechaDenuncia:  fechaDen,
 			EstadoDenuncia: string(c.EstadoDenuncia),
 			MotivoTermino:  c.MotivoTermino,
+			NumeroRol:      c.NumeroRol,
+			Tribunal:       c.Tribunal,
+			Region:         c.Region,
 			CreatedAt:      c.CreatedAt.UTC().Format(time.RFC3339),
 			UpdatedAt:      c.UpdatedAt.UTC().Format(time.RFC3339),
 		},
@@ -281,6 +287,9 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		EstadoDenuncia *string `json:"estado_denuncia"`
 		FechaDenuncia  *string `json:"fecha_denuncia"`
 		FechaDJ        *string `json:"fecha_dj"`
+		NumeroRol      *string `json:"numero_rol"`
+		Tribunal       *string `json:"tribunal"`
+		Region         *string `json:"region"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
@@ -293,6 +302,9 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		req.AbogadoID = nil
 		req.NumeroOT = nil
 		req.EstadoDenuncia = nil
+		req.NumeroRol = nil
+		req.Tribunal = nil
+		req.Region = nil
 	}
 
 	// Validate estado_denuncia if provided.
@@ -313,6 +325,9 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		AbogadoID:      req.AbogadoID,
 		NumeroOT:       req.NumeroOT,
 		EstadoDenuncia: estDenuncia,
+		NumeroRol:      req.NumeroRol,
+		Tribunal:       req.Tribunal,
+		Region:         req.Region,
 	}
 	if req.FechaDenuncia != nil {
 		if *req.FechaDenuncia == "" {
