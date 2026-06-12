@@ -52,14 +52,15 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 	}
 
 	c := &caso.Caso{
-		ID:        uuid.New().String(),
-		EstudioID: in.EstudioID,
-		BancoID:   in.BancoID,
-		ClienteID: cliente.ID,
-		Estado:    estado.Ingreso,
-		FechaDJ:   &in.FechaDJ,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:             uuid.New().String(),
+		EstudioID:      in.EstudioID,
+		BancoID:        in.BancoID,
+		ClienteID:      cliente.ID,
+		Estado:         estado.Ingreso,
+		EstadoDenuncia: caso.DenunciaPendiente,
+		FechaDJ:        &in.FechaDJ,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	if err := uc.casos.Create(ctx, c); err != nil {
 		return nil, err
