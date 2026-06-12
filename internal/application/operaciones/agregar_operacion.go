@@ -60,11 +60,10 @@ func (uc *AgregarOperacionUseCase) Execute(ctx context.Context, in AgregarOperac
 		return nil, err
 	}
 
-	// Ley 20.009 Art. 5: retiros en cajero automático tienen plazo de 15 días hábiles
-	// (vs. 5 días para otras operaciones). Si se agrega una operación de cajero,
-	// extendemos el plazo de RESTITUCION si aún no fue cumplido y sigue en 5 días.
-	if in.MedioPago == "CAJERO" && c.FechaDJ != nil {
-		uc.ajustarRestitucionCajero(ctx, in.CasoID, *c.FechaDJ)
+	// Recalculate RESTITUCION after every operation: transaction type and total UF
+	// both affect the deadline under Ley 20.009 Art. 5.
+	if c.FechaDJ != nil {
+		uc.ajustarRestitucion(ctx, in.CasoID, *c.FechaDJ)
 	}
 
 	uid := in.UsuarioID
@@ -79,17 +78,43 @@ func (uc *AgregarOperacionUseCase) Execute(ctx context.Context, in AgregarOperac
 	return op, nil
 }
 
-func (uc *AgregarOperacionUseCase) ajustarRestitucionCajero(ctx context.Context, casoID string, fechaDJ time.Time) {
+// ajustarRestitucion recalculates the RESTITUCION plazo according to Ley 20.009 Art. 5:
+//   - Base: 5 días hábiles (cards/transfers) or 15 días (ATM/cajero)
+//   - +7 días adicionales if total disputed amount exceeds 35 UF
+//
+// Only extends — never shortens — the deadline.
+func (uc *AgregarOperacionUseCase) ajustarRestitucion(ctx context.Context, casoID string, fechaDJ time.Time) {
+	ops, err := uc.operaciones.ListByCaso(ctx, casoID)
+	if err != nil {
+		return
+	}
+
+	base := 5
+	var totalUF float64
+	for _, op := range ops {
+		if op.MedioPago == "CAJERO" {
+			base = 15
+		}
+		if op.MontoUF != nil {
+			totalUF += *op.MontoUF
+		}
+	}
+
+	targetDias := base
+	if totalUF > 35 {
+		targetDias = base + 7
+	}
+
 	plazos, err := uc.plazos.ListByCase(ctx, casoID)
 	if err != nil {
 		return
 	}
 	for _, p := range plazos {
-		if p.Tipo == plazo.TipoRestitucion && !p.Completed && p.DiasHabiles < 15 {
+		if p.Tipo == plazo.TipoRestitucion && !p.Completed && p.DiasHabiles < targetDias {
 			horizon := fechaDJ.AddDate(0, 1, 0)
 			holidays, _ := uc.feriados.GetHolidays(ctx, fechaDJ, horizon)
-			nuevaFechaLimite := plazo.CalculateDeadline(fechaDJ, 15, holidays)
-			_ = uc.plazos.UpdateDiasHabiles(ctx, p.ID, 15, nuevaFechaLimite)
+			nuevaFechaLimite := plazo.CalculateDeadline(fechaDJ, targetDias, holidays)
+			_ = uc.plazos.UpdateDiasHabiles(ctx, p.ID, targetDias, nuevaFechaLimite)
 			return
 		}
 	}

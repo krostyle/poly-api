@@ -96,6 +96,7 @@ type CasoListItem struct {
 	Estado          estado.Estado
 	FechaDJ         *time.Time
 	EstadoDenuncia  caso.EstadoDenuncia
+	TotalCLP        int64
 	CreatedAt       time.Time
 }
 

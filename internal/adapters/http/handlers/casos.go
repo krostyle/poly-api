@@ -36,17 +36,18 @@ func NewCasosHandler(
 // ── JSON response types ──────────────────────────────────────────────────────
 
 type casoListItemJSON struct {
-	ID             string `json:"id"`
-	BancoID        string `json:"banco_id"`
-	BancoNombre    string `json:"banco_nombre"`
-	ClienteID      string `json:"cliente_id"`
-	ClienteRUT     string `json:"cliente_rut"`
-	ClienteNombre  string `json:"cliente_nombre"`
+	ID             string  `json:"id"`
+	BancoID        string  `json:"banco_id"`
+	BancoNombre    string  `json:"banco_nombre"`
+	ClienteID      string  `json:"cliente_id"`
+	ClienteRUT     string  `json:"cliente_rut"`
+	ClienteNombre  string  `json:"cliente_nombre"`
 	AbogadoID      *string `json:"abogado_id"`
 	NumeroOT       *string `json:"numero_ot"`
 	Estado         string  `json:"estado"`
 	FechaDJ        *string `json:"fecha_dj"`
 	EstadoDenuncia string  `json:"estado_denuncia"`
+	TotalCLP       int64   `json:"total_clp"`
 	CreatedAt      string  `json:"created_at"`
 }
 
@@ -115,6 +116,7 @@ func toCasoListItemJSON(item *domain.CasoListItem) casoListItemJSON {
 		Estado:         string(item.Estado),
 		FechaDJ:        formatDatePtr(item.FechaDJ),
 		EstadoDenuncia: string(item.EstadoDenuncia),
+		TotalCLP:       item.TotalCLP,
 		CreatedAt:      item.CreatedAt.UTC().Format(time.RFC3339),
 	}
 }

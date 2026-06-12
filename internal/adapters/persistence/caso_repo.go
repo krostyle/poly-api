@@ -122,7 +122,9 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 	total := int(totalRaw)
 
 	q := `SELECT c.id, c.banco_id, b.nombre, c.cliente_id, cl.rut, cl.nombre,
-		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.estado_denuncia, c.created_at
+		c.abogado_id, c.numero_ot, c.estado, c.fecha_dj, c.estado_denuncia,
+		COALESCE((SELECT SUM(o.monto_clp) FROM operaciones o WHERE o.caso_id = c.id), 0) AS total_clp,
+		c.created_at
 		FROM casos c
 		JOIN bancos   b  ON b.id  = c.banco_id
 		JOIN clientes cl ON cl.id = c.cliente_id
@@ -148,7 +150,7 @@ func (r *CasoRepo) ListRich(ctx context.Context, estudioID string, filters domai
 			&item.ID, &item.BancoID, &item.BancoNombre,
 			&item.ClienteID, &item.ClienteRUT, &item.ClienteNombre,
 			&item.AbogadoID, &item.NumeroOT, &est,
-			&fechaDJ, &estDenuncia, &item.CreatedAt,
+			&fechaDJ, &estDenuncia, &item.TotalCLP, &item.CreatedAt,
 		); err != nil {
 			return nil, 0, err
 		}
