@@ -38,6 +38,22 @@ func RolFromCtx(ctx context.Context) string {
 	return v
 }
 
+// RequireRol returns a middleware that allows only the listed roles.
+func RequireRol(roles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rol := RolFromCtx(r.Context())
+			for _, allowed := range roles {
+				if rol == allowed {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		})
+	}
+}
+
 // RequireAuth reads the Clerk session claims injected by clerkhttp.WithHeaderAuthorization,
 // looks up the estudio and usuario in the DB, and injects the tenant scope into context.
 //

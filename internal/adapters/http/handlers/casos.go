@@ -282,6 +282,14 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tramitadores may only update fecha fields — block privileged fields silently.
+	rol := middleware.RolFromCtx(r.Context())
+	if rol == "TRAMITADOR" {
+		req.AbogadoID = nil
+		req.NumeroOT = nil
+		req.DenunciaValida = nil
+	}
+
 	input := appcasos.UpdateCaseInput{
 		EstudioID:      estudioID,
 		CasoID:         id,

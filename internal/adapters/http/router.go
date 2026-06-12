@@ -83,22 +83,22 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 
 		r.Get("/v1/me", bootstrapH.Me)
 
-		// Bancos + asignaciones
+		// Bancos — lecturas abiertas, mutaciones solo ADMIN
 		r.Route("/v1/bancos", func(r chi.Router) {
 			r.Get("/", bancosH.Listar)
 			r.Get("/catalogo", bancosH.Catalogo)
-			r.Post("/", bancosH.Crear)
-			r.Patch("/{id}", bancosH.Actualizar)
-			r.Delete("/{id}", bancosH.Eliminar)
+			r.With(middleware.RequireRol("ADMIN")).Post("/", bancosH.Crear)
+			r.With(middleware.RequireRol("ADMIN")).Patch("/{id}", bancosH.Actualizar)
+			r.With(middleware.RequireRol("ADMIN")).Delete("/{id}", bancosH.Eliminar)
 			r.Get("/{id}/usuarios", bancosH.ListarUsuarios)
-			r.Post("/{id}/usuarios", bancosH.AsignarUsuario)
-			r.Delete("/{id}/usuarios/{usuarioId}", bancosH.DesasignarUsuario)
+			r.With(middleware.RequireRol("ADMIN")).Post("/{id}/usuarios", bancosH.AsignarUsuario)
+			r.With(middleware.RequireRol("ADMIN")).Delete("/{id}/usuarios/{usuarioId}", bancosH.DesasignarUsuario)
 		})
 
-		// Usuarios del estudio
+		// Usuarios — lectura abierta (se usa para selector de abogado), gestión solo ADMIN
 		r.Get("/v1/usuarios", bancosH.ListarUsuariosEstudio)
-		r.Post("/v1/usuarios/invitar", usuariosH.Invitar)
-		r.Patch("/v1/usuarios/{id}/rol", usuariosH.ActualizarRol)
+		r.With(middleware.RequireRol("ADMIN")).Post("/v1/usuarios/invitar", usuariosH.Invitar)
+		r.With(middleware.RequireRol("ADMIN")).Patch("/v1/usuarios/{id}/rol", usuariosH.ActualizarRol)
 
 		r.Route("/v1/clientes", func(r chi.Router) {
 			r.Post("/", clientesH.Crear)
@@ -114,7 +114,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 			r.Get("/{id}", casosH.Obtener)
 			r.Patch("/{id}", casosH.Actualizar)
 			r.Delete("/{id}", casosH.Eliminar)
-			r.Post("/{id}/transicion", casosH.Transicionar)
+			r.With(middleware.RequireRol("ADMIN", "ABOGADO")).Post("/{id}/transicion", casosH.Transicionar)
 			r.Get("/{id}/historial", casosH.Historial)
 			r.Post("/{id}/operaciones", operacionesH.Crear)
 			r.Get("/{id}/operaciones", operacionesH.Listar)
