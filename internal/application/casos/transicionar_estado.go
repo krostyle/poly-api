@@ -12,10 +12,12 @@ import (
 )
 
 var (
-	ErrMotivoTerminoRequerido    = errors.New("se requiere seleccionar un motivo de término")
-	ErrMotivoTerminoInvalido     = errors.New("el motivo de término seleccionado no es válido")
-	ErrDenunciaRechazadaRequerida = errors.New("el banco debe haber rechazado la denuncia para ingresar a Pago Normativo")
-	ErrDenunciaAcogidaRequerida   = errors.New("el banco debe haber acogido la denuncia para pasar directamente a la etapa Judicial")
+	ErrMotivoTerminoRequerido      = errors.New("se requiere seleccionar un motivo de término")
+	ErrMotivoTerminoInvalido       = errors.New("el motivo de término seleccionado no es válido")
+	ErrDenunciaRechazadaRequerida  = errors.New("el banco debe haber rechazado la denuncia para ingresar a Pago Normativo")
+	ErrDenunciaAcogidaRequerida    = errors.New("el banco debe haber acogido la denuncia para pasar directamente a la etapa Judicial")
+	ErrFechaDenunciaRequerida      = errors.New("se requiere registrar la fecha de denuncia antes de solicitar la medida precautoria")
+	ErrDenunciaPendienteInvalida   = errors.New("la denuncia del banco debe estar resuelta (acogida o rechazada) antes de solicitar la medida precautoria")
 )
 
 type TransitionStateInput struct {
@@ -104,6 +106,13 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 //   - Acogida   → Judicial directly (bank accepts, normative payment is skipped)
 func validateDenunciaGuard(c *caso.Caso, target estado.Estado) error {
 	switch target {
+	case estado.Prejudicial:
+		if c.FechaDenuncia == nil {
+			return ErrFechaDenunciaRequerida
+		}
+		if c.EstadoDenuncia == caso.DenunciaPendiente {
+			return ErrDenunciaPendienteInvalida
+		}
 	case estado.PagoNormativo:
 		if c.EstadoDenuncia != caso.DenunciaRechazada {
 			return ErrDenunciaRechazadaRequerida

@@ -76,13 +76,45 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 		return nil, err
 	}
 
+	cambios := map[string]any{}
+	if in.AbogadoID != nil {
+		if in.AbogadoID == nil || *in.AbogadoID == "" {
+			cambios["abogado"] = nil
+		} else {
+			cambios["abogado"] = *in.AbogadoID
+		}
+	}
+	if in.NumeroOT != nil {
+		cambios["numero_ot"] = *in.NumeroOT
+	}
+	if in.EstadoDenuncia != nil {
+		cambios["estado_denuncia"] = string(*in.EstadoDenuncia)
+	}
+	if in.ClearFechaDenuncia {
+		cambios["fecha_denuncia"] = nil
+	} else if in.FechaDenuncia != nil {
+		cambios["fecha_denuncia"] = in.FechaDenuncia.Format("2006-01-02")
+	}
+	if in.FechaDJ != nil {
+		cambios["fecha_dj"] = in.FechaDJ.Format("2006-01-02")
+	}
+	if in.NumeroRol != nil {
+		cambios["numero_rol"] = *in.NumeroRol
+	}
+	if in.Tribunal != nil {
+		cambios["tribunal"] = *in.Tribunal
+	}
+	if in.Region != nil {
+		cambios["region"] = *in.Region
+	}
+
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
 		EstudioID: in.EstudioID,
 		UsuarioID: &uid,
 		CasoID:    &in.CasoID,
 		Accion:    "CASO_ACTUALIZADO",
-		Detalle:   map[string]any{"caso_id": in.CasoID},
+		Detalle:   map[string]any{"cambios": cambios},
 	})
 
 	return uc.casos.GetDetalle(ctx, in.EstudioID, in.CasoID)
