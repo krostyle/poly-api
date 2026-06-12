@@ -74,6 +74,44 @@ func (h *UsuariosHandler) Invitar(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "invitation sent"})
 }
 
+// PATCH /v1/me/rol — any authenticated user
+// Lets the user choose their own role (ABOGADO or TRAMITADOR) on first login.
+// Also marks onboarding_completado = true.
+func (h *UsuariosHandler) CompletarOnboarding(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok || claims == nil {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Rol string `json:"rol"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+	if req.Rol != "ABOGADO" && req.Rol != "TRAMITADOR" {
+		http.Error(w, `{"error":"el rol debe ser ABOGADO o TRAMITADOR"}`, http.StatusBadRequest)
+		return
+	}
+
+	updated, err := h.usuarios.CompleteOnboarding(r.Context(), claims.Subject, req.Rol)
+	if err != nil {
+		http.Error(w, `{"error":"no se pudo actualizar el rol"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"id":                    updated.ID,
+		"nombre":                updated.Nombre,
+		"email":                 updated.Email,
+		"rol":                   updated.Rol,
+		"onboarding_completado": updated.OnboardingCompletado,
+	})
+}
+
 // PATCH /v1/usuarios/:id/rol — ADMIN only
 // Updates the user's Poly role and syncs the Clerk org membership role when ADMIN changes.
 func (h *UsuariosHandler) ActualizarRol(w http.ResponseWriter, r *http.Request) {

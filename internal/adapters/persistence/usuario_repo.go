@@ -32,7 +32,7 @@ func (r *UsuarioRepo) UpsertByClerkUserID(ctx context.Context, in domain.UpsertU
 				WHEN usuarios.rol = 'TRAMITADOR' AND EXCLUDED.rol = 'ABOGADO' THEN 'TRAMITADOR'
 				ELSE EXCLUDED.rol
 			END
-		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, created_at`
+		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at`
 
 	row := r.pool.QueryRow(ctx, q, in.ClerkUserID, in.EstudioID, in.Nombre, in.Email, in.Rol)
 	return scanUsuario(row)
@@ -40,14 +40,22 @@ func (r *UsuarioRepo) UpsertByClerkUserID(ctx context.Context, in domain.UpsertU
 
 func (r *UsuarioRepo) UpdateRol(ctx context.Context, estudioID, id, rol string) (*domain.Usuario, error) {
 	const q = `
-		UPDATE usuarios SET rol = $1
+		UPDATE usuarios SET rol = $1, onboarding_completado = true
 		WHERE id = $2 AND estudio_id = $3
-		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, created_at`
+		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at`
 	return scanUsuario(r.pool.QueryRow(ctx, q, rol, id, estudioID))
 }
 
+func (r *UsuarioRepo) CompleteOnboarding(ctx context.Context, clerkUserID, rol string) (*domain.Usuario, error) {
+	const q = `
+		UPDATE usuarios SET rol = $1, onboarding_completado = true
+		WHERE clerk_user_id = $2
+		RETURNING id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at`
+	return scanUsuario(r.pool.QueryRow(ctx, q, rol, clerkUserID))
+}
+
 func (r *UsuarioRepo) GetByClerkUserID(ctx context.Context, clerkUserID string) (*domain.Usuario, error) {
-	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, created_at FROM usuarios WHERE clerk_user_id = $1`
+	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at FROM usuarios WHERE clerk_user_id = $1`
 	row := r.pool.QueryRow(ctx, q, clerkUserID)
 	return scanUsuario(row)
 }
@@ -72,7 +80,7 @@ func (r *UsuarioRepo) GetBancoIDs(ctx context.Context, usuarioID string) ([]stri
 }
 
 func (r *UsuarioRepo) ListByEstudio(ctx context.Context, estudioID string) ([]*domain.Usuario, error) {
-	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, created_at
+	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at
 		FROM usuarios WHERE estudio_id = $1 ORDER BY nombre`
 	rows, err := r.pool.Query(ctx, q, estudioID)
 	if err != nil {
@@ -92,7 +100,7 @@ func (r *UsuarioRepo) ListByEstudio(ctx context.Context, estudioID string) ([]*d
 }
 
 func (r *UsuarioRepo) GetByEstudioAndID(ctx context.Context, estudioID, id string) (*domain.Usuario, error) {
-	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, created_at
+	const q = `SELECT id, clerk_user_id, estudio_id, nombre, email, rol, onboarding_completado, created_at
 		FROM usuarios WHERE id = $1 AND estudio_id = $2`
 	return scanUsuario(r.pool.QueryRow(ctx, q, id, estudioID))
 }
@@ -104,7 +112,7 @@ type usuarioScanner interface {
 func scanUsuario(row usuarioScanner) (*domain.Usuario, error) {
 	var u domain.Usuario
 	var createdAt time.Time
-	err := row.Scan(&u.ID, &u.ClerkUserID, &u.EstudioID, &u.Nombre, &u.Email, &u.Rol, &createdAt)
+	err := row.Scan(&u.ID, &u.ClerkUserID, &u.EstudioID, &u.Nombre, &u.Email, &u.Rol, &u.OnboardingCompletado, &createdAt)
 	if err != nil {
 		return nil, err
 	}

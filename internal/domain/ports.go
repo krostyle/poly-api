@@ -20,13 +20,14 @@ type Estudio struct {
 }
 
 type Usuario struct {
-	ID          string
-	ClerkUserID string
-	EstudioID   string
-	Nombre      string
-	Email       string
-	Rol         string
-	CreatedAt   time.Time
+	ID                    string
+	ClerkUserID           string
+	EstudioID             string
+	Nombre                string
+	Email                 string
+	Rol                   string
+	OnboardingCompletado  bool
+	CreatedAt             time.Time
 }
 
 type Banco struct {
@@ -58,6 +59,7 @@ type UsuarioRepository interface {
 	ListByEstudio(ctx context.Context, estudioID string) ([]*Usuario, error)
 	GetByEstudioAndID(ctx context.Context, estudioID, id string) (*Usuario, error)
 	UpdateRol(ctx context.Context, estudioID, id, rol string) (*Usuario, error)
+	CompleteOnboarding(ctx context.Context, clerkUserID, rol string) (*Usuario, error)
 }
 
 type UsuarioBanco struct {

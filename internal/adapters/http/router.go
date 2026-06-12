@@ -82,6 +82,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 		r.Use(middleware.RequireTenantScope)
 
 		r.Get("/v1/me", bootstrapH.Me)
+		r.Patch("/v1/me/rol", usuariosH.CompletarOnboarding)
 
 		// Bancos — lecturas abiertas, mutaciones solo ADMIN
 		r.Route("/v1/bancos", func(r chi.Router) {

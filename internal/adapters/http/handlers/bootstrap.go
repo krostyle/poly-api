@@ -44,10 +44,11 @@ type estudioJSON struct {
 }
 
 type usuarioJSON struct {
-	ID     string `json:"id"`
-	Nombre string `json:"nombre"`
-	Email  string `json:"email"`
-	Rol    string `json:"rol"`
+	ID                   string `json:"id"`
+	Nombre               string `json:"nombre"`
+	Email                string `json:"email"`
+	Rol                  string `json:"rol"`
+	OnboardingCompletado bool   `json:"onboarding_completado"`
 }
 
 type bancoJSON struct {
@@ -114,7 +115,7 @@ func (h *BootstrapHandler) Me(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profileResponse{
 		Estudio: estudioJSON{ID: estudio.ID, Nombre: estudio.Nombre},
-		Usuario: usuarioJSON{ID: usuario.ID, Nombre: usuario.Nombre, Email: usuario.Email, Rol: usuario.Rol},
+		Usuario: usuarioJSON{ID: usuario.ID, Nombre: usuario.Nombre, Email: usuario.Email, Rol: usuario.Rol, OnboardingCompletado: usuario.OnboardingCompletado},
 		Bancos:  toBancoJSONs(bancos),
 	})
 }
@@ -134,7 +135,7 @@ func toProfileResponse(e *domain.Estudio, u *domain.Usuario, bs []*domain.Banco)
 	}
 	return profileResponse{
 		Estudio: estudioJSON{ID: e.ID, Nombre: e.Nombre},
-		Usuario: usuarioJSON{ID: u.ID, Nombre: u.Nombre, Email: u.Email, Rol: u.Rol},
+		Usuario: usuarioJSON{ID: u.ID, Nombre: u.Nombre, Email: u.Email, Rol: u.Rol, OnboardingCompletado: u.OnboardingCompletado},
 		Bancos:  bancos,
 	}
 }
