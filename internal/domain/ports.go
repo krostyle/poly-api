@@ -222,6 +222,21 @@ type StoredPlazoGlobal struct {
 	Estado        string
 }
 
+// ── Tribunal types ───────────────────────────────────────────────────────────
+
+type Tribunal struct {
+	ID        string
+	Nombre    string
+	Region    string
+	Activo    bool
+	CreatedAt time.Time
+}
+
+type TribunalRepository interface {
+	List(ctx context.Context) ([]*Tribunal, error)
+	Create(ctx context.Context, nombre, region string) (*Tribunal, error)
+}
+
 // ── Supporting ports ─────────────────────────────────────────────────────────
 
 // FeriadoProvider supplies the Chilean public holiday calendar.

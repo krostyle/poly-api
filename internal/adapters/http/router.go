@@ -32,6 +32,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	plazosRepo := persistence.NewPlazoRepo(pool)
 	feriadosProvider := feriados.NewDBFeriadoProvider(pool)
 	documentosRepo := persistence.NewDocumentoRepo(pool)
+	tribunalesRepo := persistence.NewTribunalRepo(pool)
 	blobStorage := storage.NewVercelBlobStorage()
 
 	// ── Use cases ────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 	documentosH := handlers.NewDocumentosHandler(subirDocUC, documentosRepo)
 	dashboardH := handlers.NewDashboardHandler(dashboardUC)
 	usuariosH := handlers.NewUsuariosHandler(usuariosRepo)
+	tribunalesH := handlers.NewTribunalesHandler(tribunalesRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
@@ -108,6 +110,9 @@ func NewRouter(pool *pgxpool.Pool) http.Handler {
 		})
 
 		r.Get("/v1/plazos", plazosH.ListarGlobal)
+
+		r.Get("/v1/tribunales", tribunalesH.Listar)
+		r.With(middleware.RequireRol("ADMIN")).Post("/v1/tribunales", tribunalesH.Crear)
 
 		r.Route("/v1/casos", func(r chi.Router) {
 			r.Get("/", casosH.Listar)
