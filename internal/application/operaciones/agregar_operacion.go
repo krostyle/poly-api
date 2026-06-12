@@ -78,8 +78,9 @@ func (uc *AgregarOperacionUseCase) Execute(ctx context.Context, in AgregarOperac
 	return op, nil
 }
 
-// ajustarRestitucion recalculates the RESTITUCION plazo according to Ley 20.009 Art. 5:
-//   - Base: 5 días hábiles (cards/transfers) or 15 días (ATM/cajero)
+// ajustarRestitucion recalculates the RESTITUCION plazo according to Ley 20.009 Art. 5
+// as amended by Ley 21.673 (May 2024):
+//   - Base: 10 días hábiles (cards/transfers) or 15 días (ATM/cajero)
 //   - +7 días adicionales if total disputed amount exceeds 35 UF
 //
 // Only extends — never shortens — the deadline.
@@ -89,7 +90,7 @@ func (uc *AgregarOperacionUseCase) ajustarRestitucion(ctx context.Context, casoI
 		return
 	}
 
-	base := 5
+	base := 10
 	var totalUF float64
 	for _, op := range ops {
 		if op.MedioPago == "CAJERO" {

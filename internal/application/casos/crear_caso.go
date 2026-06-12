@@ -93,7 +93,7 @@ func (uc *CreateCaseUseCase) createInitialPlazos(ctx context.Context, casoID str
 		dias int
 	}{
 		{plazo.TipoAnalisisInterno, 5},
-		{plazo.TipoRestitucion, 5},  // Ley 20.009 Art. 5: 5 días hábiles; se extiende a 15 si la operación es cajero
+		{plazo.TipoRestitucion, 10}, // Ley 20.009 Art. 5 (mod. Ley 21.673/2024): 10 días hábiles; 15 si cajero; +7 si >35 UF
 		{plazo.TipoAsignacion, 7},
 		{plazo.TipoRespuestaDenuncia, 30},
 	}
