@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -215,7 +216,7 @@ func (h *CasosHandler) Crear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.BancoID == "" || req.ClienteRUT == "" || req.ClienteNombre == "" {
-		http.Error(w, `{"error":"banco_id, cliente_rut and cliente_nombre are required"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"banco, RUT y nombre del cliente son obligatorios"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -245,7 +246,8 @@ func (h *CasosHandler) Crear(w http.ResponseWriter, r *http.Request) {
 
 	detalle, err := h.crear.Execute(r.Context(), input)
 	if err != nil {
-		http.Error(w, `{"error":"could not create caso"}`, http.StatusInternalServerError)
+		log.Printf("[Crear] error: %v", err)
+		http.Error(w, `{"error":"No se pudo crear el caso. Intenta nuevamente."}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -339,7 +341,8 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 
 	detalle, err := h.actualizar.Execute(r.Context(), input)
 	if err != nil {
-		http.Error(w, `{"error":"could not update caso"}`, http.StatusInternalServerError)
+		log.Printf("[Actualizar] error: %v", err)
+		http.Error(w, `{"error":"No se pudieron guardar los cambios. Intenta nuevamente."}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -436,7 +439,8 @@ func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	if err := h.repo.Delete(r.Context(), estudioID, id); err != nil {
-		http.Error(w, `{"error":"could not delete caso"}`, http.StatusInternalServerError)
+		log.Printf("[Eliminar] error: %v", err)
+		http.Error(w, `{"error":"No se pudo eliminar el caso. Intenta nuevamente."}`, http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

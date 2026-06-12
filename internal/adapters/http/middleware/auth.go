@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -85,6 +86,7 @@ func RequireAuth(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 
 			usuario, err := usuariosRepo.GetByClerkUserID(r.Context(), claims.Subject)
 			if err != nil {
+				log.Printf("[RequireAuth] GetByClerkUserID error: %v", err)
 				http.Error(w, `{"error":"usuario not found — run bootstrap"}`, http.StatusUnauthorized)
 				return
 			}
