@@ -6,7 +6,6 @@ import (
 
 	"poly.app/api/internal/domain"
 	"poly.app/api/internal/domain/caso"
-	"poly.app/api/internal/domain/plazo"
 )
 
 type UpdateCaseInput struct {
@@ -19,7 +18,6 @@ type UpdateCaseInput struct {
 	FechaDenuncia      *time.Time
 	FechaDJ            *time.Time
 	ClearFechaDenuncia bool
-	ClearFechaDJ       bool
 }
 
 type UpdateCaseUseCase struct {
@@ -44,8 +42,6 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 		return nil, err
 	}
 
-	oldFechaDJ := c.FechaDJ
-
 	if in.AbogadoID != nil {
 		c.AbogadoID = in.AbogadoID
 	}
@@ -60,19 +56,12 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	} else if in.FechaDenuncia != nil {
 		c.FechaDenuncia = in.FechaDenuncia
 	}
-	if in.ClearFechaDJ {
-		c.FechaDJ = nil
-	} else if in.FechaDJ != nil {
+	if in.FechaDJ != nil {
 		c.FechaDJ = in.FechaDJ
 	}
 
 	if err := uc.casos.Update(ctx, c); err != nil {
 		return nil, err
-	}
-
-	// Create the 30-business-day response deadline the first time FechaDJ is recorded.
-	if !in.ClearFechaDJ && in.FechaDJ != nil && oldFechaDJ == nil {
-		uc.createRespuestaDenunciaPlazos(ctx, c.ID, *in.FechaDJ)
 	}
 
 	uid := in.UsuarioID
@@ -87,14 +76,3 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	return uc.casos.GetDetalle(ctx, in.EstudioID, in.CasoID)
 }
 
-func (uc *UpdateCaseUseCase) createRespuestaDenunciaPlazos(ctx context.Context, casoID string, fechaDJ time.Time) {
-	horizon := fechaDJ.AddDate(0, 3, 0)
-	holidays, _ := uc.feriados.GetHolidays(ctx, fechaDJ, horizon)
-	_ = uc.plazos.CreateBatch(ctx, []domain.NewPlazoInput{{
-		CasoID:      casoID,
-		Tipo:        plazo.TipoRespuestaDenuncia,
-		FechaInicio: fechaDJ,
-		DiasHabiles: 30,
-		FechaLimite: plazo.CalculateDeadline(fechaDJ, 30, holidays),
-	}})
-}

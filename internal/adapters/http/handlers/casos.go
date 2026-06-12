@@ -326,17 +326,13 @@ func (h *CasosHandler) Actualizar(w http.ResponseWriter, r *http.Request) {
 			input.FechaDenuncia = &t
 		}
 	}
-	if req.FechaDJ != nil {
-		if *req.FechaDJ == "" {
-			input.ClearFechaDJ = true
-		} else {
-			t, err := time.Parse("2006-01-02", *req.FechaDJ)
-			if err != nil {
-				http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
-				return
-			}
-			input.FechaDJ = &t
+	if req.FechaDJ != nil && *req.FechaDJ != "" {
+		t, err := time.Parse("2006-01-02", *req.FechaDJ)
+		if err != nil {
+			http.Error(w, `{"error":"fecha_dj debe tener formato YYYY-MM-DD"}`, http.StatusBadRequest)
+			return
 		}
+		input.FechaDJ = &t
 	}
 
 	detalle, err := h.actualizar.Execute(r.Context(), input)
