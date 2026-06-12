@@ -11,9 +11,8 @@ func TestValidTransitions(t *testing.T) {
 		current estado.Estado
 		target  estado.Estado
 	}{
-		{estado.Ingreso, estado.Revision},
+		{estado.Ingreso, estado.Prejudicial},
 		{estado.Ingreso, estado.Terminado},
-		{estado.Revision, estado.Prejudicial},
 		{estado.Prejudicial, estado.PagoNormativo},
 		{estado.Prejudicial, estado.Judicial},
 		{estado.Prejudicial, estado.Terminado},
@@ -37,9 +36,9 @@ func TestInvalidTransitions(t *testing.T) {
 		target  estado.Estado
 	}{
 		{estado.Ingreso, estado.Judicial},
+		{estado.Ingreso, estado.Audiencia},
 		{estado.Cierre, estado.Ingreso},
-		{estado.Terminado, estado.Revision},
-		{estado.Revision, estado.Cierre},
+		{estado.Terminado, estado.Ingreso},
 	}
 	for _, tc := range cases {
 		if err := estado.Transition(tc.current, tc.target); err == nil {

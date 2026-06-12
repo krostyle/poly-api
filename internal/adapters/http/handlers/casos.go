@@ -219,25 +219,28 @@ func (h *CasosHandler) Crear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.FechaDJ == nil || *req.FechaDJ == "" {
+		http.Error(w, `{"error":"fecha_dj es obligatoria"}`, http.StatusBadRequest)
+		return
+	}
+	fechaDJ, err := time.Parse("2006-01-02", *req.FechaDJ)
+	if err != nil {
+		http.Error(w, `{"error":"fecha_dj debe tener formato YYYY-MM-DD"}`, http.StatusBadRequest)
+		return
+	}
+	if fechaDJ.After(time.Now()) {
+		http.Error(w, `{"error":"fecha_dj no puede ser una fecha futura"}`, http.StatusBadRequest)
+		return
+	}
+
 	input := appcasos.CreateCaseInput{
 		EstudioID:       estudioID,
 		BancoID:         req.BancoID,
 		ClienteRUT:      req.ClienteRUT,
 		ClienteNombre:   req.ClienteNombre,
 		ClienteContacto: req.ClienteContacto,
+		FechaDJ:         fechaDJ,
 		UsuarioID:       usuarioID,
-	}
-	if req.FechaDJ != nil && *req.FechaDJ != "" {
-		t, err := time.Parse("2006-01-02", *req.FechaDJ)
-		if err != nil {
-			http.Error(w, `{"error":"fecha_dj must be YYYY-MM-DD"}`, http.StatusBadRequest)
-			return
-		}
-		if t.After(time.Now()) {
-			http.Error(w, `{"error":"fecha_dj cannot be in the future"}`, http.StatusBadRequest)
-			return
-		}
-		input.FechaDJ = &t
 	}
 
 	detalle, err := h.crear.Execute(r.Context(), input)

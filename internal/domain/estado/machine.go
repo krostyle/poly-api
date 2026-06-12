@@ -10,10 +10,9 @@ var ErrTransicionNoPermitida = errors.New("la transición solicitada no está pe
 
 type Estado string
 
-// Los 12 estados del flujo Ley 20.009, en orden cronológico típico.
+// Los 11 estados del flujo Ley 20.009 (REVISION eliminado — los casos llegan siempre con DJ).
 const (
 	Ingreso          Estado = "INGRESO"
-	Revision         Estado = "REVISION"
 	Prejudicial      Estado = "PREJUDICIAL"
 	PagoNormativo    Estado = "PAGO_NORMATIVO"
 	Judicial         Estado = "JUDICIAL"
@@ -27,10 +26,8 @@ const (
 )
 
 // transitions define el grafo de transiciones permitidas.
-// CIERRE viene después de TERMINADO (corregido respecto al modelo original).
 var transitions = map[Estado][]Estado{
-	Ingreso:          {Revision, Terminado},
-	Revision:         {Prejudicial, Terminado},
+	Ingreso:          {Prejudicial, Terminado},
 	Prejudicial:      {PagoNormativo, Judicial, Terminado},
 	PagoNormativo:    {Judicial, Terminado},
 	Judicial:         {Audiencia, Terminado},

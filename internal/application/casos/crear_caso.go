@@ -17,7 +17,7 @@ type CreateCaseInput struct {
 	ClienteRUT      string
 	ClienteNombre   string
 	ClienteContacto *string
-	FechaDJ         *time.Time
+	FechaDJ         time.Time // obligatoria — casos siempre llegan con DJ
 	UsuarioID       string
 }
 
@@ -57,7 +57,7 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		BancoID:   in.BancoID,
 		ClienteID: cliente.ID,
 		Estado:    estado.Ingreso,
-		FechaDJ:   in.FechaDJ,
+		FechaDJ:   &in.FechaDJ,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -65,9 +65,7 @@ func (uc *CreateCaseUseCase) Execute(ctx context.Context, in CreateCaseInput) (*
 		return nil, err
 	}
 
-	if in.FechaDJ != nil {
-		uc.createInitialPlazos(ctx, c.ID, *in.FechaDJ)
-	}
+	uc.createInitialPlazos(ctx, c.ID, in.FechaDJ)
 
 	uid := in.UsuarioID
 	_ = uc.auditor.Log(ctx, domain.AuditEntry{
