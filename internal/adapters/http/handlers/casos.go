@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -357,11 +358,11 @@ func (h *CasosHandler) Transicionar(w http.ResponseWriter, r *http.Request) {
 		Forzar:            req.Forzar,
 	})
 	if err != nil {
-		if isBadRequest(err, req.Estado) {
+		if isBadRequest(err) {
 			http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 			return
 		}
-		http.Error(w, `{"error":"could not transition estado"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Error al procesar la transición de estado"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -429,11 +430,10 @@ func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
 }
 
 // isBadRequest returns true if the error is a domain validation error, not a server error.
-func isBadRequest(err error, _ string) bool {
-	msg := err.Error()
-	return msg == "invalid transition" ||
-		msg == "termination reason is required when closing a caso as TERMINADO" ||
-		msg == "invalid motivo_termino"
+func isBadRequest(err error) bool {
+	return errors.Is(err, estado.ErrTransicionNoPermitida) ||
+		errors.Is(err, appcasos.ErrMotivoTerminoRequerido) ||
+		errors.Is(err, appcasos.ErrMotivoTerminoInvalido)
 }
 
 // Ensure old signature compiles — NewCasosHandler replaces the old zero-arg version.

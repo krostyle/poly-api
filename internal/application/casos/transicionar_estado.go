@@ -11,6 +11,11 @@ import (
 	"poly.app/api/internal/domain/plazo"
 )
 
+var (
+	ErrMotivoTerminoRequerido = errors.New("se requiere seleccionar un motivo de término")
+	ErrMotivoTerminoInvalido  = errors.New("el motivo de término seleccionado no es válido")
+)
+
 type TransitionStateInput struct {
 	EstudioID         string
 	CasoID            string
@@ -50,10 +55,10 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	}
 	if in.NewState == estado.Terminado {
 		if in.TerminationReason == nil || *in.TerminationReason == "" {
-			return errors.New("termination reason is required when closing a caso as TERMINADO")
+			return ErrMotivoTerminoRequerido
 		}
 		if !caso.IsValidMotivoTermino(*in.TerminationReason) {
-			return errors.New("invalid motivo_termino")
+			return ErrMotivoTerminoInvalido
 		}
 	}
 

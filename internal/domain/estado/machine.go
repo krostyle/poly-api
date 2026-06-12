@@ -1,6 +1,12 @@
 package estado
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+// ErrTransicionNoPermitida se devuelve cuando el destino no es alcanzable desde el estado actual.
+var ErrTransicionNoPermitida = errors.New("la transición solicitada no está permitida para el estado actual del caso")
 
 type Estado string
 
@@ -54,7 +60,7 @@ func Transition(current, target Estado) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("transition not allowed: %q → %q", current, target)
+	return fmt.Errorf("%w (de %q a %q)", ErrTransicionNoPermitida, current, target)
 }
 
 // AvailableTransitions returns the estados reachable from current.
