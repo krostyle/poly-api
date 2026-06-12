@@ -1,10 +1,10 @@
 # SPEC-06 Dashboard — Tasks
 
-## Estado: 🔲 Pendiente (requiere SPEC-04)
+## Estado: ✅ Completado
 
 ## Tareas
-- [ ] `queries/dashboard.sql` (por-vencer, nuevos, estancados, por-abogado)
-- [ ] Completar `application/dashboard/consultas.go`
-- [ ] `handlers/dashboard.go`
-- [ ] Montar rutas `/v1/dashboard/*`
-- [ ] Verificación: `GET /v1/dashboard/por-vencer` → casos ordenados por días restantes
+- [x] `queries/dashboard.sql` (por-vencer, nuevos, estancados, por-abogado)
+- [x] Completar `application/dashboard/consultas.go`
+- [x] `handlers/dashboard.go`
+- [x] Montar rutas `/v1/dashboard/*`
+- [x] Verificación: `GET /v1/dashboard/por-vencer` → casos ordenados por días restantes

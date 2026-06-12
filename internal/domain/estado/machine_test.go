@@ -11,17 +11,18 @@ func TestValidTransitions(t *testing.T) {
 		current estado.Estado
 		target  estado.Estado
 	}{
-		{estado.Llamada, estado.Revision},
-		{estado.Llamada, estado.Terminado},
-		{estado.Revision, estado.Suspension},
-		{estado.Suspension, estado.PreJudicializacion},
-		{estado.PreJudicializacion, estado.Judicializacion},
-		{estado.PreJudicializacion, estado.Restitucion},
-		{estado.PreJudicializacion, estado.Terminado},
-		{estado.Restitucion, estado.Judicializacion},
-		{estado.Restitucion, estado.Cierre},
-		{estado.Judicializacion, estado.Cierre},
-		{estado.Judicializacion, estado.Terminado},
+		{estado.Ingreso, estado.Revision},
+		{estado.Ingreso, estado.Terminado},
+		{estado.Revision, estado.Prejudicial},
+		{estado.Prejudicial, estado.PagoNormativo},
+		{estado.Prejudicial, estado.Judicial},
+		{estado.Prejudicial, estado.Terminado},
+		{estado.PagoNormativo, estado.Judicial},
+		{estado.Judicial, estado.Audiencia},
+		{estado.Audiencia, estado.Sentencia},
+		{estado.Sentencia, estado.Apelacion},
+		{estado.Sentencia, estado.Cumplimiento},
+		{estado.Terminado, estado.Cierre},
 	}
 	for _, tc := range cases {
 		if err := estado.Transition(tc.current, tc.target); err != nil {
@@ -35,8 +36,8 @@ func TestInvalidTransitions(t *testing.T) {
 		current estado.Estado
 		target  estado.Estado
 	}{
-		{estado.Llamada, estado.Judicializacion},
-		{estado.Cierre, estado.Llamada},
+		{estado.Ingreso, estado.Judicial},
+		{estado.Cierre, estado.Ingreso},
 		{estado.Terminado, estado.Revision},
 		{estado.Revision, estado.Cierre},
 	}
