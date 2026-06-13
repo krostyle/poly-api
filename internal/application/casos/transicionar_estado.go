@@ -12,10 +12,8 @@ import (
 )
 
 var (
-	ErrMotivoTerminoRequerido     = errors.New("se requiere seleccionar un motivo de término")
-	ErrMotivoTerminoInvalido      = errors.New("el motivo de término seleccionado no es válido")
-	ErrDenunciaRechazadaRequerida = errors.New("el banco debe haber rechazado la denuncia para ingresar a Pago Normativo")
-	ErrDenunciaAcogidaRequerida   = errors.New("el banco debe haber acogido la denuncia para pasar directamente a la etapa Judicial")
+	ErrMotivoTerminoRequerido = errors.New("se requiere seleccionar un motivo de término")
+	ErrMotivoTerminoInvalido  = errors.New("el motivo de término seleccionado no es válido")
 )
 
 type TransitionStateInput struct {
@@ -51,9 +49,6 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	}
 	if !in.Forzar {
 		if err := c.ValidateTransition(in.NewState); err != nil {
-			return err
-		}
-		if err := validateDenunciaGuard(c, in.NewState); err != nil {
 			return err
 		}
 	}
@@ -98,25 +93,6 @@ func (uc *TransitionStateUseCase) Execute(ctx context.Context, in TransitionStat
 	return nil
 }
 
-// validateDenunciaGuard enforces the business rule that the bank's response to the
-// denuncia determines which path is taken from Prejudicial:
-//   - Rechazada → PagoNormativo (bank rejects, normative payment phase applies)
-//   - Acogida   → Judicial directly (bank accepts, normative payment is skipped)
-func validateDenunciaGuard(c *caso.Caso, target estado.Estado) error {
-	switch target {
-	case estado.PagoNormativo:
-		if c.EstadoDenuncia != caso.DenunciaRechazada {
-			return ErrDenunciaRechazadaRequerida
-		}
-	case estado.Judicial:
-		// Guard only applies when coming from Prejudicial (skipping PagoNormativo).
-		// From PagoNormativo → Judicial no additional check is needed.
-		if c.Estado == estado.Prejudicial && c.EstadoDenuncia != caso.DenunciaAcogida {
-			return ErrDenunciaAcogidaRequerida
-		}
-	}
-	return nil
-}
 
 func (uc *TransitionStateUseCase) marcarRestitucionCumplida(ctx context.Context, casoID string) {
 	plazos, err := uc.plazos.ListByCase(ctx, casoID)

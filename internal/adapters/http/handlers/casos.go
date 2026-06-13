@@ -495,9 +495,7 @@ func (h *CasosHandler) Eliminar(w http.ResponseWriter, r *http.Request) {
 func isBadRequest(err error) bool {
 	return errors.Is(err, estado.ErrTransicionNoPermitida) ||
 		errors.Is(err, appcasos.ErrMotivoTerminoRequerido) ||
-		errors.Is(err, appcasos.ErrMotivoTerminoInvalido) ||
-		errors.Is(err, appcasos.ErrDenunciaRechazadaRequerida) ||
-		errors.Is(err, appcasos.ErrDenunciaAcogidaRequerida)
+		errors.Is(err, appcasos.ErrMotivoTerminoInvalido)
 }
 
 // keep import used only for interface check

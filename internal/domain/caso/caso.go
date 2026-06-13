@@ -84,21 +84,24 @@ func IsValidResultadoJPL(s string) bool {
 	return false
 }
 
-// EstadoDenuncia represents the bank's response to a fraud complaint (denuncia Ley 20.009).
-// PENDIENTE: awaiting response; ACOGIDA: bank accepted → skips PagoNormativo;
-// RECHAZADA: bank rejected → must go through PagoNormativo.
+// EstadoDenuncia represents the state of the client's fraud complaint (denuncia Ley 20.009).
+// SOLICITADA: denuncia submitted to bank, awaiting response;
+// VALIDA: bank acknowledged the denuncia as valid;
+// INVALIDA: bank found the denuncia invalid;
+// SIN_DENUNCIA: no denuncia was filed.
 type EstadoDenuncia string
 
 const (
-	DenunciaPendiente EstadoDenuncia = "PENDIENTE"
-	DenunciaAcogida   EstadoDenuncia = "ACOGIDA"
-	DenunciaRechazada EstadoDenuncia = "RECHAZADA"
+	DenunciaSolicitada EstadoDenuncia = "SOLICITADA"
+	DenunciaValida     EstadoDenuncia = "VALIDA"
+	DenunciaInvalida   EstadoDenuncia = "INVALIDA"
+	DenunciaSinDenuncia EstadoDenuncia = "SIN_DENUNCIA"
 )
 
 // IsValidEstadoDenuncia reports whether s is a known denuncia state.
 func IsValidEstadoDenuncia(s string) bool {
 	switch EstadoDenuncia(s) {
-	case DenunciaPendiente, DenunciaAcogida, DenunciaRechazada:
+	case DenunciaSolicitada, DenunciaValida, DenunciaInvalida, DenunciaSinDenuncia:
 		return true
 	}
 	return false

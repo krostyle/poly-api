@@ -27,7 +27,7 @@ const (
 
 // transitions define el grafo de transiciones permitidas.
 var transitions = map[Estado][]Estado{
-	Ingreso:          {Prejudicial, Terminado},
+	Ingreso:          {Prejudicial, Judicial, Terminado},
 	Prejudicial:      {PagoNormativo, Judicial, Terminado},
 	PagoNormativo:    {Judicial, Terminado},
 	Judicial:         {Audiencia, Terminado},
