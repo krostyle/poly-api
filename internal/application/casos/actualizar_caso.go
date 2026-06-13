@@ -6,7 +6,17 @@ import (
 
 	"poly.app/api/internal/domain"
 	"poly.app/api/internal/domain/caso"
+	"poly.app/api/internal/domain/plazo"
 )
+
+// plazosTipoDJ son los plazos cuya fecha límite se calcula desde la fecha_dj.
+// Si la fecha_dj cambia, estos plazos deben recalcularse.
+var plazosTipoDJ = []plazo.TipoPlazo{
+	plazo.TipoAnalisisInterno,
+	plazo.TipoRestitucion,
+	plazo.TipoAsignacion,
+	plazo.TipoRespuestaDenuncia,
+}
 
 type UpdateCaseInput struct {
 	EstudioID          string
@@ -62,6 +72,7 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	} else if in.FechaDenuncia != nil {
 		c.FechaDenuncia = in.FechaDenuncia
 	}
+	fechaDJAnterior := c.FechaDJ
 	if in.FechaDJ != nil {
 		c.FechaDJ = in.FechaDJ
 	}
@@ -88,6 +99,10 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 
 	if err := uc.casos.Update(ctx, c); err != nil {
 		return nil, err
+	}
+
+	if in.FechaDJ != nil && (fechaDJAnterior == nil || !in.FechaDJ.Equal(*fechaDJAnterior)) {
+		uc.recalcularPlazosDJ(ctx, in.CasoID, *in.FechaDJ)
 	}
 
 	cambios := map[string]any{}
@@ -143,5 +158,27 @@ func (uc *UpdateCaseUseCase) Execute(ctx context.Context, in UpdateCaseInput) (*
 	})
 
 	return uc.casos.GetDetalle(ctx, in.EstudioID, in.CasoID)
+}
+
+func (uc *UpdateCaseUseCase) recalcularPlazosDJ(ctx context.Context, casoID string, nuevaFechaDJ time.Time) {
+	todos, err := uc.plazos.ListByCase(ctx, casoID)
+	if err != nil {
+		return
+	}
+	horizon := nuevaFechaDJ.AddDate(0, 3, 0)
+	holidays, _ := uc.feriados.GetHolidays(ctx, nuevaFechaDJ, horizon)
+
+	for _, p := range todos {
+		if p.Completed {
+			continue
+		}
+		for _, tipo := range plazosTipoDJ {
+			if p.Tipo == tipo {
+				nuevaLimite := plazo.CalculateDeadline(nuevaFechaDJ, p.DiasHabiles, holidays)
+				_ = uc.plazos.UpdateDiasHabiles(ctx, p.ID, p.DiasHabiles, nuevaLimite)
+				break
+			}
+		}
+	}
 }
 
