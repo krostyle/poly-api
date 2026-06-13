@@ -497,9 +497,7 @@ func isBadRequest(err error) bool {
 		errors.Is(err, appcasos.ErrMotivoTerminoRequerido) ||
 		errors.Is(err, appcasos.ErrMotivoTerminoInvalido) ||
 		errors.Is(err, appcasos.ErrDenunciaRechazadaRequerida) ||
-		errors.Is(err, appcasos.ErrDenunciaAcogidaRequerida) ||
-		errors.Is(err, appcasos.ErrFechaDenunciaRequerida) ||
-		errors.Is(err, appcasos.ErrDenunciaPendienteInvalida)
+		errors.Is(err, appcasos.ErrDenunciaAcogidaRequerida)
 }
 
 // keep import used only for interface check
