@@ -2,7 +2,7 @@
 
 ## Estado actual
 
-**Última fase completada: 12 — Eliminar Caso**
+**Última fase completada: 13 — JPL, Dominio Ley 20.009 y Correcciones de Plazos**
 
 ## Fases
 
@@ -89,14 +89,32 @@
 - [x] poly-web: controles de filtro en listado de casos
 - **Spec:** `poly-api/specs/10-casos-filtros/`
 
-### Fase 9 — Eliminar caso ✅
+### Fase 9 — Eliminar caso ✅ (backend) / ⏳ (frontend pendiente)
 
 **Objetivo:** ADMIN puede eliminar un caso (con borrado en cascada) y filtrar casos cerrados.
 
 - [x] poly-api: `DELETE /v1/casos/:id` con transacción en cascada
 - [x] poly-api: filtro `excluir_cierre` en listado
-- [ ] poly-web: botón eliminar + toggle "Incluir cerrados" (pendiente)
+- [ ] poly-web: botón eliminar + toggle "Incluir cerrados"
 - **Spec:** `poly-api/specs/12-eliminar-caso/`
+
+### Fase 10 — JPL, Dominio Ley 20.009 y Correcciones de Plazos ✅
+
+**Objetivo:** Modelar correctamente el flujo Ley 20.009, rastrear resoluciones JPL, configurar plazos por estudio y visualizar el flujo de cada caso.
+
+- [x] poly-api: `EstadoDenuncia` corregido — `SOLICITADA/VALIDA/INVALIDA/SIN_DENUNCIA`
+- [x] poly-api: `ResultadoJPL` — `ACEPTA_SUSPENSION/RECHAZA_SUSPENSION/FALLO_FAVORABLE/FALLO_DESFAVORABLE`
+- [x] poly-api: plazo `RESOLUCION_JPL` (3 días) creado al entrar a PREJUDICIAL
+- [x] poly-api: `INGRESO → JUDICIAL` habilitado (tribunales que exigen demanda + medida precautoria simultáneas)
+- [x] poly-api: guards de denuncia eliminados — el camino JUDICIAL/PAGO_NORMATIVO lo determina el JPL
+- [x] poly-api: recálculo automático de plazos de ingreso cuando cambia `fecha_dj`
+- [x] poly-api: plazos configurables por estudio (`ANALISIS_INTERNO`, `ASIGNACION`) con tabla `configuracion_plazos`
+- [x] poly-api: migraciones 011 (JPL + configuración) y 012 (valores denuncia)
+- [x] poly-web: `CasoFlowView` — timeline vertical del flujo con estados, plazos y decisión JPL
+- [x] poly-web: página `/configuracion/plazos` para admin
+- [x] poly-web: región bloqueada cuando hay tribunal seleccionado
+- [x] poly-web: resultado JPL full-width (labels no se cortan)
+- **Spec:** `poly-api/specs/13-jpl-dominio-plazos/`
 
 ---
 
